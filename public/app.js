@@ -26,7 +26,7 @@ function joinSession() {
 			// Subscribe to the Stream to receive it
 			// HTML video will be appended to element with 'video-container' id
 			var subscriber = session.subscribe(event.stream, 'video-container');
-
+            if(subscriber==isPublisher){subscriber=null};
 			// When the HTML video has been appended to DOM...
 			subscriber.on('videoElementCreated', (event) => {
 
@@ -45,7 +45,7 @@ function joinSession() {
 		//        the client (in this case a JSON with the nickname chosen by the user) ---
 		
 		
-		session.connect(token)
+		session.connect(token) 
 			.then(() => {
 
 				// --- 5) Set page layout for active call ---
@@ -65,7 +65,7 @@ function joinSession() {
 					// --- 6) Get your own camera stream ---
 
 					var publisher = OV.initPublisher();
-
+                    $('#video-container').hide();
 					// --- 7) Specify the actions when events take place in our publisher ---
 
 					// When our HTML video has been added to DOM...
