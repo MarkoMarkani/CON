@@ -15,12 +15,16 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
 
 // Node imports
 var express = require('express');
+var util = require('util')
+var kafka = require('kafka-node');
+var request = require('request');
 var fs = require('fs');
+var btoa = require('btoa');
 var session = require('express-session');
 var https = require('https');
 var bodyParser = require('body-parser'); // Pull information from HTML POST (express4)
 var app = express(); // Create our app with express
-
+var globalSessionId;
 // Server configuration
 app.use(session({
     saveUninitialized: true,
@@ -34,6 +38,9 @@ app.use(bodyParser.urlencoded({
 app.use(bodyParser.json()); // Parse application/json
 app.use(bodyParser.json({
     type: 'application/vnd.api+json'
+}));
+app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
+    extended: true
 })); // Parse application/vnd.api+json as json
 
 // Listen (start app with node server.js)
@@ -41,7 +48,22 @@ var options = {
     key: fs.readFileSync('openvidukey.pem'),
     cert: fs.readFileSync('openviducert.pem')
 };
-https.createServer(options, app).listen(5000);
+
+var Producer = kafka.Producer,
+    client = new kafka.KafkaClient(),
+    producer = new Producer(client);
+
+var Consumer = kafka.Consumer,
+    consumer = new Consumer(client,
+        [{ topic: 'Posts', offset: 0 }],
+        {
+            autoCommit: false
+        }
+    );
+
+https.createServer(options, app).listen(5000, function () {
+    console.log('Kafka producer running at 5000')
+});
 
 // Mock database
 var users = [{
@@ -100,6 +122,99 @@ console.log("App listening on port 5000");
 
 /* REST API */
 
+// producer.on('ready', function () {
+//     console.log('Producer is ready');
+//     payloads = {
+//         topic: 'topicName',
+//         messages: ['message body'], // multi messages should be a array, single message can be just a string or a KeyedMessage instance
+//         key: 'theKey', // only needed when using keyed partitioner (optional)
+//         partition: 0, // default 0 (optional)
+//         attributes: 2 // default: 0 used for compression (optional)
+//     }
+// });
+
+producer.on('error', function (err) {
+    console.log('Producer is in error state');
+    console.log(err);
+});
+
+consumer.on('message', function (message) {
+    console.log(message);
+});
+
+consumer.on('error', function (err) {
+    console.log('Error:',err);
+});
+
+consumer.on('offsetOutOfRange', function (err) {
+    console.log('offsetOutOfRange:',err);
+});
+
+// app.get('/kafka', function (req, res) {
+//     res.json({ greeting: 'Kafka Producer' })
+// });
+
+// app.post('/sendMsg', function (req, res) {
+//     var sentMessage = JSON.stringify(req.body.message);
+//     payloads = [
+//         { topic: req.body.topic, messages: sentMessage, partition: 0 }
+//     ];
+//     producer.send(payloads, function (err, data) {
+//         res.json(data);
+//     });
+
+// });
+
+function sendRecordings (res,req) {
+  var session=globalSessionId;
+    request({
+  
+      url: `https://localhost:4443/api/sessions/${session}`,
+  
+      method: "GET",
+  
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Authorization": "Basic " + btoa("OPENVIDUAPP:MY_SECRET")
+      }
+   
+    }, function (error, response, body) {
+  
+      if (!error && response.statusCode === 200) {
+  
+        console.log(body);
+        payloads = [
+            { topic: "Posts", messages: body, partition: 0 }
+        ];
+        producer.send(payloads, function (err, data) {
+            console.log(err);
+            console.log(data);
+        });
+        return;
+  
+      } else {
+  
+        console.log("error: " + error);
+  
+        console.log(body);
+  
+        if (response) {
+  
+          console.log("response.statusCode: " + response.statusCode);
+  
+          console.log("response.statusText: " + response.statusText);
+  
+        }
+  
+        return;
+  
+      }
+   
+    });
+  
+  };
+
+
 // Login
 app.post('/api-login/login', function (req, res) {
 
@@ -122,22 +237,30 @@ app.post('/api-login/login', function (req, res) {
     }
 });
 
+app.post('/api-sessions/sendSession', function (req, res) {
+
+    // Retrieve params from POST body
+    globalSessionId=req.body.globalSessionId;
+    console.log("Ëvo nam ga "+globalSessionId);
+    sendRecordings();
+
+});
 // Logout
 app.post('/api-login/logout', function (req, res) {
     console.log("'" + req.session.loggedUser + "' has logged out");
     req.session.destroy();
     res.status(200).send();
-});
+});  
 
 // Get token (add new user to session)
 app.post('/api-sessions/get-token', function (req, res) {
+   
     if (!isLogged(req.session)) {
         req.session.destroy();
         res.status(401).send('User not logged');
     } else {
         // The video-call to connect
         var sessionName = req.body.sessionName;
-
         // Role associated to this user
         var role = users.find(u => (u.user === req.session.loggedUser)).role;
 
@@ -146,7 +269,7 @@ app.post('/api-sessions/get-token', function (req, res) {
         var serverData = JSON.stringify({ serverData: req.session.loggedUser });
 
         console.log("Getting a token | {sessionName}={" + sessionName + "}");
-
+        // sendRecordings();
         // Build tokenOptions object with the serverData and the role
         var tokenOptions = {
             data: serverData,
@@ -166,7 +289,7 @@ app.post('/api-sessions/get-token', function (req, res) {
 
                     // Store the new token in the collection of tokens
                     mapSessionNamesTokens[sessionName].push(token);
-
+                    
                     // Return the token to the client
                     res.status(200).send({
                         0: token
@@ -186,7 +309,7 @@ app.post('/api-sessions/get-token', function (req, res) {
                     mapSessions[sessionName] = session;
                     // Store a new empty array in the collection of tokens
                     mapSessionNamesTokens[sessionName] = [];
-
+                    // console.log(util.inspect( session))
                     // Generate a new token asynchronously with the recently created tokenOptions
                     session.generateToken(tokenOptions)
                         .then(token => {
@@ -209,7 +332,7 @@ app.post('/api-sessions/get-token', function (req, res) {
         }
     }
 });
-
+// console.log(sessionId);
 // Remove user from session
 app.post('/api-sessions/remove-user', function (req, res) {
     if (!isLogged(req.session)) {
@@ -269,3 +392,13 @@ function getBasicAuth() {
 }
 
 /* AUXILIARY METHODS */
+// setInterval(function() {
+//     payloads = [
+//       { topic: "cat", messages: `I have ${count} cats`, partition: 0 }
+//     ];
+
+//     producer.send(payloads, function(err, data) {
+//       console.log(data);
+//       count += 1;
+//     });
+//   }, 5000);

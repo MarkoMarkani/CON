@@ -1,6 +1,6 @@
 var OV;
 var session;
-
+var globalSessionId;
 var sessionName;	// Name of the video session the user will connect to
 var token;			// Token retrieved from OpenVidu Server
 
@@ -84,7 +84,10 @@ function joinSession() {
 					// --- 8) Publish your stream ---
 
 					session.publish(publisher);
-
+                    sessionId = session.sessionId
+					globalSessionId = sessionId;
+					console.log(sessionId);
+					sendSession(globalSessionId);
 				} else {
 					console.warn('You don\'t have permissions to publish');
 					// Show SUBSCRIBER message in main video
@@ -151,7 +154,6 @@ function logOut() {
 
 function getToken(callback) {
 	sessionName = $("#sessionName").val(); // Video-call chosen by the user
-
 	httpPostRequest(
 		'api-sessions/get-token',
 		{sessionName: sessionName},
@@ -164,6 +166,18 @@ function getToken(callback) {
 	);
 }
 
+function sendSession() {
+	globalSessionId=globalSessionId; // Video-call chosen by the user
+	httpPostRequest(
+		'api-sessions/sendSession',
+		{globalSessionId:globalSessionId},
+		'Request gone WRONG:',
+		(response) => {
+			console.log("Iz send session-a "+JSON.stringify(response));
+		}
+	);
+}
+
 function removeUser() {
 	httpPostRequest(
 		'api-sessions/remove-user',
@@ -171,6 +185,19 @@ function removeUser() {
 		'User couldn\'t be removed from session', 
 		(response) => {
 			console.warn("You have been removed from session " + sessionName);
+		}
+	);
+}
+
+function showRecording() {
+	httpGetRequest(
+		`https://localhost:4443/api/recordings/${globalSessionId}`,
+		{},
+		'Failed to fetch recordings',
+		res => {
+			console.log("Ovde vidimo recording :" + JSON.stringify(res));
+			globalRes = res;
+			return JSON.stringify(res);
 		}
 	);
 }
@@ -198,6 +225,30 @@ function httpPostRequest(url, body, errorMsg, callback) {
 	}
 }
 
+function httpGetRequest(url, body, errorMsg, callback) {
+	var http = new XMLHttpRequest();
+	http.open('GET', url, true);
+	http.setRequestHeader('Content-type', 'application/json');
+	http.setRequestHeader('Access-Control-Allow-Origin', '*');
+	http.setRequestHeader("Authorization", 'Basic ' + btoa('OPENVIDUAPP:MY_SECRET'));
+	http.addEventListener('readystatechange', processRequest, false);
+	http.send(JSON.stringify(body));
+
+	function processRequest() {
+		if (http.readyState == 4) {
+			if (http.status == 200) {
+				try {
+					callback(JSON.parse(http.responseText));
+				} catch (e) {
+					callback();
+				}
+			} else {
+				console.warn(errorMsg);
+				console.warn(http.responseText);
+			}
+		}
+	}
+}
 /* APPLICATION REST METHODS */
 
 
