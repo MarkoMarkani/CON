@@ -35,9 +35,9 @@
 	</nav>
 
 	<div class="container text-center">
-		<div id="not-logged" class="vertical-center">
-			<div id="img-div"></div>
-			<form class="form-group jumbotron" onsubmit="return false">
+		 <div id="not-logged" hidden class="vertical-center"> 
+			<div id="img-div"></div> 
+			 <form class="form-group jumbotron" onsubmit="return false">
 				<p>
 					<label >User</label><input class="form-control" type="text" id="user" required>
 				</p>
@@ -45,78 +45,39 @@
 					<label>Pass</label><input class="form-control" type="password" id="pass" required>
 				</p>
 				<p class="text-center">
-					<button class="btn btn-lg btn-info" onclick="logIn()">Log in</button>
+					<button class="btn btn-lg btn-info" onclick="logIn(),joinSession()">Log in</button>
 				</p>
-			</form>
-			<!-- <table class="table">
-				<tr>
-					<th>User</th>
-					<th>Pass</th>
-					<th>Role<i data-toggle="tooltip" data-placement="bottom" title="" data-original-title="<div id='tooltip-div'>PUBLISHER<div>Send and receive media<hr></div>SUBSCRIBER<div>Receive media</div></div>"
-						    class="glyphicon glyphicon-info-sign"></i></th>
-				</tr>
-				<tr>
-					<td>publisher1</td>
-					<td>pass</td>
-					<td>PUBLISHER</td>
-				</tr>
-				<tr>
-					<td>publisher2</td>
-					<td>pass</td>
-					<td>PUBLISHER</td>
-				</tr>
-				<tr>
-					<td>publisher3</td>
-					<td>pass</td>
-					<td>PUBLISHER</td>
-				</tr>
-				<tr>
-					<td>subscriber1</td>
-					<td>pass</td>
-					<td>SUBSCRIBER</td>
-				</tr>
-				<tr>
-					<td>subscriber2</td>
-					<td>pass</td>
-					<td>SUBSCRIBER</td>
-				</tr>
-				<tr>
-					<td>subscriber3</td>
-					<td>pass</td>
-					<td>SUBSCRIBER</td>
-				</tr>
-			</table> -->
-		</div>
+			</form> 
+			
+		 </div> 
 
-		<div id="logged" hidden>
+		<div id="logged" >
 			<div id="join" class="vertical-center">
 				<div id="join-dialog" class="jumbotron">
-					<h1>Join a video session</h1>
+					<h1>Publish a new session</h1>
 					<form class="form-group" onsubmit="return false">
 						<!-- <p>
 							<label>Participant</label>
 							<input class="form-control" type="text" id="nickName" required>
 						</p> -->
-						<p>
-							<label>Session</label>
-							<input class="form-control" type="text" id="sessionName" required>
-						</p>
+					
 						<p class="text-center">
-							<button class="btn btn-lg btn-success" onclick="joinSession()">Join!</button>
+							<button class="btn btn-lg btn-success" onclick="joinSession()">Publish</button>
+							<button class="btn btn-lg btn-success" onclick="showLogIn()">Subscribe</button>
 						</p>
 					</form>
 					<hr>
-					<div id="login-info">
+					<!-- <div id="login-info">
 						<div>Logged as <span id="name-user"></span></div>
 						<button id="logout-btn" class="btn btn-warning" onclick="logOut()">Log out</button>
-					</div>
+					</div> -->
 				</div>
 			</div>
 
 			<div id="session" style="display: none;">
 				<div>
 					<h1 id="session-title"></h1>
-					<input class="btn btn-large btn-danger" type="button" id="buttonLeaveSession" onmouseup="removeUser(); leaveSession()" value="Leave session">
+				<a href= "/">	<input class="btn btn-large btn-danger" type="button" id="buttonLeaveSession" onmouseup="removeUser(); leaveSession()" value="Leave session"></a>
 				</div>
 				<div id="main-video" class="col-md-6">
 					<!-- <p class="nickName"></p> -->

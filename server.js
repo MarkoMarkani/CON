@@ -25,6 +25,8 @@ var https = require('https');
 var bodyParser = require('body-parser'); // Pull information from HTML POST (express4)
 var app = express(); // Create our app with express
 var globalSessionId;
+var urlId;
+var url;
 // Server configuration
 app.use(session({
     saveUninitialized: true,
@@ -55,7 +57,7 @@ var Producer = kafka.Producer,
 
 var Consumer = kafka.Consumer,
     consumer = new Consumer(client,
-        [{ topic: 'Posts', offset: 0 }],
+        [{ topic: 'Streams', offset: 0 }],
         {
             autoCommit: false
         }
@@ -139,15 +141,15 @@ producer.on('error', function (err) {
 });
 
 consumer.on('message', function (message) {
-    console.log(message);
+    // console.log(message);vraticemo
 });
 
 consumer.on('error', function (err) {
-    console.log('Error:',err);
+    console.log('Error:', err);
 });
 
 consumer.on('offsetOutOfRange', function (err) {
-    console.log('offsetOutOfRange:',err);
+    // console.log('offsetOutOfRange:', err); vraticemo
 });
 
 // app.get('/kafka', function (req, res) {
@@ -165,54 +167,57 @@ consumer.on('offsetOutOfRange', function (err) {
 
 // });
 
-function sendRecordings (res,req) {
-  var session=globalSessionId;
+function sendFetchedSession(res, req) {
+    var session = globalSessionId;
     request({
-  
-      url: `https://localhost:4443/api/sessions/${session}`,
-  
-      method: "GET",
-  
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Authorization": "Basic " + btoa("OPENVIDUAPP:MY_SECRET")
-      }
-   
-    }, function (error, response, body) {
-  
-      if (!error && response.statusCode === 200) {
-  
-        console.log(body);
-        payloads = [
-            { topic: "Posts", messages: body, partition: 0 }
-        ];
-        producer.send(payloads, function (err, data) {
-            console.log(err);
-            console.log(data);
-        });
-        return;
-  
-      } else {
-  
-        console.log("error: " + error);
-  
-        console.log(body);
-  
-        if (response) {
-  
-          console.log("response.statusCode: " + response.statusCode);
-  
-          console.log("response.statusText: " + response.statusText);
-  
+
+        url: `https://localhost:4443/api/sessions/${session}`,
+
+        method: "GET",
+
+        headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Authorization": "Basic " + btoa("OPENVIDUAPP:MY_SECRET")
         }
-  
-        return;
-  
-      }
-   
+
+    }, function (error, response, body) {
+
+        if (!error && response.statusCode === 200) {
+            bodyObject = JSON.parse(body);
+            url = "https://localhost:5000/#" + urlId;
+            bodyObject.urlId = url;
+            newResponse = JSON.stringify(bodyObject); // object = ""
+            console.log("evo ga isparsirani body : " + newResponse);
+            payloads = [
+                { topic: "Streams", messages: newResponse, partition: 0 }
+            ];
+            producer.send(payloads, function (err, data) {
+                console.log(err);
+                // console.log(data);vraticemo
+            });
+            return;
+
+        } else {
+
+            console.log("error: " + error);
+
+            // console.log(body);vraticemo
+
+            if (response) {
+
+                console.log("response.statusCode: " + response.statusCode);
+
+                console.log("response.statusText: " + response.statusText);
+
+            }
+
+            return;
+
+        }
+
     });
-  
-  };
+
+};
 
 
 // Login
@@ -228,7 +233,7 @@ app.post('/api-login/login', function (req, res) {
         // Value stored in req.session allows us to identify the user in future requests
         console.log("'" + user + "' has logged in");
         req.session.loggedUser = user;
-        res.status(200).send();
+        res.status(200).send("You have logged in");
     } else { // Wrong user-pass
         // Invalidate session and return error
         console.log("'" + user + "' invalid credentials");
@@ -237,140 +242,134 @@ app.post('/api-login/login', function (req, res) {
     }
 });
 
-app.post('/api-sessions/sendSession', function (req, res) {
+app.post('/api-sessions/sendSessionFromFront', function (req, res) {
 
     // Retrieve params from POST body
-    globalSessionId=req.body.globalSessionId;
-    console.log("Ëvo nam ga "+globalSessionId);
-    sendRecordings();
+    globalSessionId = req.body.globalSessionId;
+    urlId = req.body.urlId;
+    console.log("Evo nam ga " + globalSessionId);
+    sendFetchedSession();
 
 });
 // Logout
-app.post('/api-login/logout', function (req, res) {
-    console.log("'" + req.session.loggedUser + "' has logged out");
-    req.session.destroy();
-    res.status(200).send();
-});  
+// app.post('/api-login/logout', function (req, res) {
+//     console.log("'" + req.session.loggedUser + "' has logged out");
+//     req.session.destroy();
+//     res.status(200).send();
+// });  
 
 // Get token (add new user to session)
 app.post('/api-sessions/get-token', function (req, res) {
-   
-    if (!isLogged(req.session)) {
-        req.session.destroy();
-        res.status(401).send('User not logged');
+
+
+    // The video-call to connect
+    var sessionName = req.body.sessionName;
+    // Role associated to this user
+    // var role = users.find(u => (u.user === req.session.loggedUser)).role; 
+
+    // Optional data to be passed to other users when this user connects to the video-call
+    // In this case, a JSON with the value we stored in the req.session object on login
+    var serverData = JSON.stringify({ serverData: req.session.loggedUser });
+
+    console.log("Getting a token | {sessionName}={" + sessionName + "}");
+    // Build tokenOptions object with the serverData and the role
+    var tokenOptions = {
+        data: serverData,
+        // role: role 
+    };
+
+    if (mapSessions[sessionName]) {
+        // Session already exists
+        console.log('Existing session ' + sessionName);
+
+        // Get the existing Session from the collection
+        var mySession = mapSessions[sessionName];
+
+        // Generate a new token asynchronously with the recently created tokenOptions
+        mySession.generateToken(tokenOptions)
+            .then(token => {
+
+                // Store the new token in the collection of tokens
+                mapSessionNamesTokens[sessionName].push(token);
+
+                // Return the token to the client
+                res.status(200).send({
+                    0: token
+                });
+            })
+            .catch(error => {
+                console.error(error);
+            });
     } else {
-        // The video-call to connect
-        var sessionName = req.body.sessionName;
-        // Role associated to this user
-        var role = users.find(u => (u.user === req.session.loggedUser)).role;
+        // New session
+        console.log('New session ' + sessionName);
 
-        // Optional data to be passed to other users when this user connects to the video-call
-        // In this case, a JSON with the value we stored in the req.session object on login
-        var serverData = JSON.stringify({ serverData: req.session.loggedUser });
+        // Create a new OpenVidu Session asynchronously
+        OV.createSession(properties)
+            .then(session => {
+                // Store the new Session in the collection of Sessions
+                mapSessions[sessionName] = session;
+                // Store a new empty array in the collection of tokens
+                mapSessionNamesTokens[sessionName] = [];
+                // console.log(util.inspect( session))
+                // Generate a new token asynchronously with the recently created tokenOptions
+                session.generateToken(tokenOptions)
+                    .then(token => {
 
-        console.log("Getting a token | {sessionName}={" + sessionName + "}");
-        // sendRecordings();
-        // Build tokenOptions object with the serverData and the role
-        var tokenOptions = {
-            data: serverData,
-            role: role
-        };
+                        // Store the new token in the collection of tokens
+                        mapSessionNamesTokens[sessionName].push(token);
 
-        if (mapSessions[sessionName]) {
-            // Session already exists
-            console.log('Existing session ' + sessionName);
-
-            // Get the existing Session from the collection
-            var mySession = mapSessions[sessionName];
-
-            // Generate a new token asynchronously with the recently created tokenOptions
-            mySession.generateToken(tokenOptions)
-                .then(token => {
-
-                    // Store the new token in the collection of tokens
-                    mapSessionNamesTokens[sessionName].push(token);
-                    
-                    // Return the token to the client
-                    res.status(200).send({
-                        0: token
-                    });
-                })
-                .catch(error => {
-                    console.error(error);
-                });
-        } else {
-            // New session
-            console.log('New session ' + sessionName);
-
-            // Create a new OpenVidu Session asynchronously
-            OV.createSession(properties)
-                .then(session => {
-                    // Store the new Session in the collection of Sessions
-                    mapSessions[sessionName] = session;
-                    // Store a new empty array in the collection of tokens
-                    mapSessionNamesTokens[sessionName] = [];
-                    // console.log(util.inspect( session))
-                    // Generate a new token asynchronously with the recently created tokenOptions
-                    session.generateToken(tokenOptions)
-                        .then(token => {
-
-                            // Store the new token in the collection of tokens
-                            mapSessionNamesTokens[sessionName].push(token);
-
-                            // Return the Token to the client
-                            res.status(200).send({
-                                0: token
-                            });
-                        })
-                        .catch(error => {
-                            console.error(error);
+                        // Return the Token to the client
+                        res.status(200).send({
+                            0: token
                         });
-                })
-                .catch(error => {
-                    console.error(error);
-                });
-        }
+                    })
+                    .catch(error => {
+                        console.error(error);
+                    });
+            })
+            .catch(error => {
+                console.error(error);
+            });
     }
+
 });
 // console.log(sessionId);
 // Remove user from session
 app.post('/api-sessions/remove-user', function (req, res) {
-    if (!isLogged(req.session)) {
-        req.session.destroy();
-        res.status(401).send('User not logged');
-    } else {
-        // Retrieve params from POST body
-        var sessionName = req.body.sessionName;
-        var token = req.body.token;
-        console.log('Removing user | {sessionName, token}={' + sessionName + ', ' + token + '}');
 
-        // If the session exists
-        if (mapSessions[sessionName] && mapSessionNamesTokens[sessionName]) {
-            var tokens = mapSessionNamesTokens[sessionName];
-            var index = tokens.indexOf(token);
+    // Retrieve params from POST body
+    var sessionName = req.body.sessionName;
+    var token = req.body.token;
+    console.log('Removing user | {sessionName, token}={' + sessionName + ', ' + token + '}');
 
-            // If the token exists
-            if (index !== -1) {
-                // Token removed
-                tokens.splice(index, 1);
-                console.log(sessionName + ': ' + tokens.toString());
-            } else {
-                var msg = 'Problems in the app server: the TOKEN wasn\'t valid';
-                console.log(msg);
-                res.status(500).send(msg);
-            }
-            if (tokens.length == 0) {
-                // Last user left: session must be removed
-                console.log(sessionName + ' empty!');
-                delete mapSessions[sessionName];
-            }
-            res.status(200).send();
+    // If the session exists
+    if (mapSessions[sessionName] && mapSessionNamesTokens[sessionName]) {
+        var tokens = mapSessionNamesTokens[sessionName];
+        var index = tokens.indexOf(token);
+
+        // If the token exists
+        if (index !== -1) {
+            // Token removed
+            tokens.splice(index, 1);
+            console.log(sessionName + ': ' + tokens.toString());
         } else {
-            var msg = 'Problems in the app server: the SESSION does not exist';
+            var msg = 'Problems in the app server: the TOKEN wasn\'t valid';
             console.log(msg);
             res.status(500).send(msg);
         }
+        if (tokens.length == 0) {
+            // Last user left: session must be removed
+            console.log(sessionName + ' empty!');
+            delete mapSessions[sessionName];
+        }
+        res.status(200).send();
+    } else {
+        var msg = 'Problems in the app server: the SESSION does not exist';
+        console.log(msg);
+        res.status(500).send(msg);
     }
+
 });
 
 /* REST API */
@@ -402,3 +401,4 @@ function getBasicAuth() {
 //       count += 1;
 //     });
 //   }, 5000);
+

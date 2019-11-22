@@ -3,13 +3,17 @@ var session;
 var globalSessionId;
 var sessionName;	// Name of the video session the user will connect to
 var token;			// Token retrieved from OpenVidu Server
-
-
+var sessionId;
+var urlId;
 /* OPENVIDU METHODS */
-
+//EVO NAS U GRANI DEV?GRANA1
 function joinSession() {
+	sessionId = window.location.hash.slice(1);
+	if (!sessionId) {
+		// If the user is joining to a new room
+		sessionId = makeid(15);
+	}
 	getToken((token) => {
-
 		// --- 1) Get an OpenVidu object ---
 
 		OV = new OpenVidu();
@@ -22,17 +26,22 @@ function joinSession() {
 
 		// On every new Stream received...
 		session.on('streamCreated', (event) => {
-
+			var userName = $("#user").val();
 			// Subscribe to the Stream to receive it
 			// HTML video will be appended to element with 'video-container' id
-			var subscriber = session.subscribe(event.stream, 'video-container');
-            if(subscriber==isPublisher){subscriber=null};
-			// When the HTML video has been appended to DOM...
-			subscriber.on('videoElementCreated', (event) => {
-
-				// Add a new HTML element for the user's name and nickname over its video
-				appendUserData(event.element, subscriber.stream.connection);
-			});
+			if (isSubscriber(userName)) {
+				var subscriber = session.subscribe(event.stream, 'video-container');
+				// if (subscriber == isPublisher) { subscriber = null };
+				// When the HTML video has been appended to DOM...
+				subscriber.on('videoElementCreated', (event) => {
+					var ud = { userName: sessionId }; //provericemo ovo
+					// Add a new HTML element for the user's name and nickname over its video
+					appendUserData(event.element, ud);
+					console.log("OVO VIDIS AKO SI SUBSCRIBER")
+				});
+			} else {
+				console.log("Ne mozes da vidis stream-publisher si");
+			}
 		});
 
 		// On every Stream destroyed...
@@ -43,13 +52,16 @@ function joinSession() {
 
 		// --- 4) Connect to the session passing the retrieved token and some more data from
 		//        the client (in this case a JSON with the nickname chosen by the user) ---
-		
-		
-		session.connect(token) 
+
+
+		session.connect(token)
 			.then(() => {
 
 				// --- 5) Set page layout for active call ---
-
+				var path = (location.pathname.slice(-1) == "/" ? location.pathname : location.pathname + "/");
+				window.history.pushState("", "", path + '#' + sessionId);
+				console.log("evo session id-ja iz url-a " + sessionId);
+				urlId = sessionId;
 				var userName = $("#user").val();
 				$('#session-title').text(sessionName);
 				$('#join').hide();
@@ -60,34 +72,35 @@ function joinSession() {
 				// trying to publish its stream. Even if someone modified the client's code and
 				// published the stream, it wouldn't work if the token sent in Session.connect
 				// method is not recognized as 'PUBLIHSER' role by OpenVidu Server
-				if (isPublisher(userName)) {
+				if (!isSubscriber(userName)) {
 
 					// --- 6) Get your own camera stream ---
 
 					var publisher = OV.initPublisher();
-                    $('#video-container').hide();
+					$('#video-container').hide();
 					// --- 7) Specify the actions when events take place in our publisher ---
 
 					// When our HTML video has been added to DOM...
 					publisher.on('videoElementCreated', (event) => {
 						// Init the main video with ours and append our data
 						var userData = {
-							
 							userName: userName
 						};
 						initMainVideo(event.element, userData);
 						appendUserData(event.element, userData);
 						$(event.element).prop('muted', true); // Mute local video
+						console.log("Trenutno se snima...")
 					});
 
 
 					// --- 8) Publish your stream ---
 
 					session.publish(publisher);
-                    sessionId = session.sessionId
-					globalSessionId = sessionId;
-					console.log(sessionId);
-					sendSession(globalSessionId);
+					sessionID = session.sessionId
+					globalSessionId = sessionID;
+					console.log(sessionID);
+					console.log(globalSessionId);
+					sendSessionFromFront();
 				} else {
 					console.warn('You don\'t have permissions to publish');
 					// Show SUBSCRIBER message in main video
@@ -127,17 +140,21 @@ function logIn() {
 
 	httpPostRequest(
 		'api-login/login',
-		{user: user, pass: pass},
+		{ user: user, pass: pass },
 		'Login WRONG',
 		(response) => {
 			$("#name-user").text(user);
 			$("#not-logged").hide();
 			$("#logged").show();
 			// Random nickName and session
-			$("#sessionName").val("Session " + Math.floor(Math.random() * 10));
-			
+			console.log(response);
 		}
 	);
+}
+
+function showLogIn() {
+	$("#not-logged").show();
+	$("#logged").hide();
 }
 
 function logOut() {
@@ -153,10 +170,11 @@ function logOut() {
 }
 
 function getToken(callback) {
-	sessionName = $("#sessionName").val(); // Video-call chosen by the user
+	//sessionName = $("#sessionName").val(); // Video-call chosen by the user
+	//sessionName = "Session"; // Video-call chosen by the user
 	httpPostRequest(
 		'api-sessions/get-token',
-		{sessionName: sessionName},
+		{ sessionName: sessionId },
 		'Request of TOKEN gone WRONG:',
 		(response) => {
 			token = response[0]; // Get token from response
@@ -166,14 +184,20 @@ function getToken(callback) {
 	);
 }
 
-function sendSession() {
-	globalSessionId=globalSessionId; // Video-call chosen by the user
+function sendSessionFromFront() {
+	globalSessionId = globalSessionId; // Video-call chosen by the user
+	urlId = urlId;
+	console.log(globalSessionId);
 	httpPostRequest(
-		'api-sessions/sendSession',
-		{globalSessionId:globalSessionId},
+		'api-sessions/sendSessionFromFront',
+		{
+			globalSessionId: globalSessionId,
+			urlId: urlId
+		},
 		'Request gone WRONG:',
 		(response) => {
-			console.log("Iz send session-a "+JSON.stringify(response));
+			console.log("Iz send session-a " + JSON.stringify(response));
+			console.log("evo session id-ja iz send session funkcije " + globalSessionId);
 		}
 	);
 }
@@ -181,9 +205,10 @@ function sendSession() {
 function removeUser() {
 	httpPostRequest(
 		'api-sessions/remove-user',
-		{sessionName: sessionName, token: token},
-		'User couldn\'t be removed from session', 
+		{ sessionName: sessionName, token: token },
+		'User couldn\'t be removed from session',
 		(response) => {
+
 			console.warn("You have been removed from session " + sessionName);
 		}
 	);
@@ -254,6 +279,25 @@ function httpGetRequest(url, body, errorMsg, callback) {
 
 
 /* APPLICATION BROWSER METHODS */
+
+window.addEventListener('load', function () {
+	sessionId = window.location.hash.slice(1); // For 'https://myurl/#roomId', sessionId would be 'roomId'
+	console.log("Before Joining Session");
+	// console.log("POSLE GET SESSION-NECES GA MAJCI TRALALALA IDEMO NIIIIS");
+	if (sessionId) {
+		// The URL has a session id. Join the room right away
+		console.log("Subscribing to a session with url  " + sessionId);
+		//joinSession();
+		$('#join').show();
+		$('#session').hide();
+	} else {
+		// The URL has not a session id. Show welcome page
+		$('#join').show();
+		$('#session').hide();
+
+	}
+});
+
 
 window.onbeforeunload = () => { // Gracefully leave session
 	if (session) {
@@ -328,6 +372,10 @@ function isPublisher(userName) {
 	return userName.includes('publisher');
 }
 
+function isSubscriber(userName) {
+	return userName.includes('subscriber');
+}
+
 function cleanSessionView() {
 	removeAllUserData();
 	cleanMainVideo();
@@ -335,3 +383,18 @@ function cleanSessionView() {
 }
 
 /* APPLICATION BROWSER METHODS */
+// function randomString() {
+// 	return Math.random().toString(36).slice(2);
+// }
+function makeid(length) {
+	var result = '';
+	var characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+	var charactersLength = characters.length;
+	for (var i = 0; i < length; i++) {
+		result += characters.charAt(Math.floor(Math.random() * charactersLength));
+	}
+	return result;
+}
+
+//  console.log(makeid(12));
+console.log("evo session id-ja pre starta " + sessionId)
