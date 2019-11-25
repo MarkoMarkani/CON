@@ -4,24 +4,41 @@ var globalSessionId;
 var sessionName;	// Name of the video session the user will connect to
 var token;			// Token retrieved from OpenVidu Server
 var sessionId;
-var urlId;
+var globalOV;
 /* OPENVIDU METHODS */
-//EVO NAS U GRANI DEV?GRANA1
+//U GRANI DEV?GRANA! SMO
 function joinSession() {
-	sessionId = window.location.hash.slice(1);
-	if (!sessionId) {
-		// If the user is joining to a new room
-		sessionId = makeid(15);
+    // sessionId = window.location.hash.slice(1);
+	// if (!sessionId) {
+	// 	// If the user is joining to a new room
+	// 	sessionId=session.sessionId
+	// }
+	//sessionName = makeid(15);
+	OV = new OpenVidu();
+	globalOV=JSON.stringify(OV);
+	// --- 2) Init a session ---
+	session = OV.initSession();
+	var keys=Object.getOwnPropertyNames(OV.session);
+	for(let key of keys){
+		console.log(key);
+		console.log(OV[key]);
+		console.log("------------");
 	}
+	
+
+
+	console.log(Object.getPrototypeOf(session));
+
+	
 	getToken((token) => {
 		// --- 1) Get an OpenVidu object ---
-
-		OV = new OpenVidu();
-
-		// --- 2) Init a session ---
-
-		session = OV.initSession();
-
+	
+	
+		// OV = new OpenVidu();
+		// // --- 2) Init a session ---
+		// session = OV.initSession();
+		// console.log(session);
+		//  console.log(token);
 		// --- 3) Specify the actions when events take place in the session ---
 
 		// On every new Stream received...
@@ -34,7 +51,7 @@ function joinSession() {
 				// if (subscriber == isPublisher) { subscriber = null };
 				// When the HTML video has been appended to DOM...
 				subscriber.on('videoElementCreated', (event) => {
-					var ud = { userName: sessionId }; //provericemo ovo
+					var ud = { userName:sessionName}; //provericemo ovo
 					// Add a new HTML element for the user's name and nickname over its video
 					appendUserData(event.element, ud);
 					console.log("OVO VIDIS AKO SI SUBSCRIBER")
@@ -56,12 +73,16 @@ function joinSession() {
 
 		session.connect(token)
 			.then(() => {
-
+				sessionId = window.location.hash.slice(1);
+				if (!sessionId) {
+					// If the user is joining to a new room
+					sessionId=session.sessionId
+				}
+   
 				// --- 5) Set page layout for active call ---
 				var path = (location.pathname.slice(-1) == "/" ? location.pathname : location.pathname + "/");
 				window.history.pushState("", "", path + '#' + sessionId);
-				console.log("evo session id-ja iz url-a " + sessionId);
-				urlId = sessionId;
+				console.log("evo originalnog session id-ja  " + sessionId);
 				var userName = $("#user").val();
 				$('#session-title').text(sessionName);
 				$('#join').hide();
@@ -73,7 +94,7 @@ function joinSession() {
 				// published the stream, it wouldn't work if the token sent in Session.connect
 				// method is not recognized as 'PUBLIHSER' role by OpenVidu Server
 				if (!isSubscriber(userName)) {
-
+				
 					// --- 6) Get your own camera stream ---
 
 					var publisher = OV.initPublisher();
@@ -103,6 +124,10 @@ function joinSession() {
 					sendSessionFromFront();
 				} else {
 					console.warn('You don\'t have permissions to publish');
+					sessionID = session.sessionId
+					globalSessionId = sessionID;
+					console.log(sessionID);
+					console.log(globalSessionId);
 					// Show SUBSCRIBER message in main video
 				}
 			})
@@ -172,13 +197,17 @@ function logOut() {
 function getToken(callback) {
 	//sessionName = $("#sessionName").val(); // Video-call chosen by the user
 	//sessionName = "Session"; // Video-call chosen by the user
+	sessionName = makeid(15);
+	console.log("in getToken ", sessionId);
 	httpPostRequest(
 		'api-sessions/get-token',
-		{ sessionName: sessionId },
+		{ sessionName: sessionName },
 		'Request of TOKEN gone WRONG:',
 		(response) => {
+			console.log("response ",response);
 			token = response[0]; // Get token from response
 			console.warn('Request of TOKEN gone WELL (TOKEN:' + token + ')');
+			console.log(token);
 			callback(token); // Continue the join operation
 		}
 	);
@@ -186,13 +215,15 @@ function getToken(callback) {
 
 function sendSessionFromFront() {
 	globalSessionId = globalSessionId; // Video-call chosen by the user
-	urlId = urlId;
+	sessionName=sessionName;
+	globalOV=globalOV;
 	console.log(globalSessionId);
 	httpPostRequest(
 		'api-sessions/sendSessionFromFront',
 		{
 			globalSessionId: globalSessionId,
-			urlId: urlId
+			sessionName:sessionName,
+			globalOV:globalOV
 		},
 		'Request gone WRONG:',
 		(response) => {

@@ -25,7 +25,6 @@ var https = require('https');
 var bodyParser = require('body-parser'); // Pull information from HTML POST (express4)
 var app = express(); // Create our app with express
 var globalSessionId;
-var urlId;
 var url;
 // Server configuration
 app.use(session({
@@ -184,8 +183,8 @@ function sendFetchedSession(res, req) {
 
         if (!error && response.statusCode === 200) {
             bodyObject = JSON.parse(body);
-            url = "https://localhost:5000/#" + urlId;
-            bodyObject.urlId = url;
+            // url = urlId;
+            // bodyObject.sessionId = url;
             newResponse = JSON.stringify(bodyObject); // object = ""
             console.log("evo ga isparsirani body : " + newResponse);
             payloads = [
@@ -246,8 +245,10 @@ app.post('/api-sessions/sendSessionFromFront', function (req, res) {
 
     // Retrieve params from POST body
     globalSessionId = req.body.globalSessionId;
-    urlId = req.body.urlId;
+    sessionName = req.body.sessionName;
+    globalOV=req.body.globalOV;
     console.log("Evo nam ga " + globalSessionId);
+    console.log("Evo nam ga global OV " + globalOV);
     sendFetchedSession();
 
 });
