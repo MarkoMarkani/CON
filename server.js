@@ -24,8 +24,8 @@ var session = require('express-session');
 var https = require('https');
 var bodyParser = require('body-parser'); // Pull information from HTML POST (express4)
 var app = express(); // Create our app with express
-var globalSessionId;
-var url;
+var sessionId;
+var roomId;
 // Server configuration
 app.use(session({
     saveUninitialized: true,
@@ -63,7 +63,7 @@ var Consumer = kafka.Consumer,
     );
 
 https.createServer(options, app).listen(5000, function () {
-    console.log('Kafka producer running at 5000')
+    console.log('App running at 5000')
 });
 
 // Mock database
@@ -115,7 +115,7 @@ var mapSessions = {};
 // Collection to pair session names with tokens
 var mapSessionNamesTokens = {};
 
-console.log("App listening on port 5000");
+//console.log("App listening on port 5000");
 
 /* CONFIGURATION */
 
@@ -167,10 +167,10 @@ consumer.on('offsetOutOfRange', function (err) {
 // });
 
 function sendFetchedSession(res, req) {
-    var session = globalSessionId;
+    // var sessionId = globalSessionId;
     request({
 
-        url: `https://localhost:4443/api/sessions/${session}`,
+        url: `https://localhost:4443/api/sessions/${sessionId}`,
 
         method: "GET",
 
@@ -183,10 +183,9 @@ function sendFetchedSession(res, req) {
 
         if (!error && response.statusCode === 200) {
             bodyObject = JSON.parse(body);
-            // url = urlId;
-            // bodyObject.sessionId = url;
+            bodyObject.roomId = roomId;
             newResponse = JSON.stringify(bodyObject); // object = ""
-            console.log("evo ga isparsirani body : " + newResponse);
+            console.log("Evo ga isparsirani body za Kafku  : " + newResponse);
             payloads = [
                 { topic: "Streams", messages: newResponse, partition: 0 }
             ];
@@ -244,11 +243,9 @@ app.post('/api-login/login', function (req, res) {
 app.post('/api-sessions/sendSessionFromFront', function (req, res) {
 
     // Retrieve params from POST body
-    globalSessionId = req.body.globalSessionId;
-    sessionName = req.body.sessionName;
-    globalOV=req.body.globalOV;
-    console.log("Evo nam ga " + globalSessionId);
-    console.log("Evo nam ga global OV " + globalOV);
+    sessionId = req.body.sessionId;
+    roomId = req.body.roomId;
+    console.log("Evo nam ga originalni session id  " + sessionId);
     sendFetchedSession();
 
 });
@@ -264,7 +261,7 @@ app.post('/api-sessions/get-token', function (req, res) {
 
 
     // The video-call to connect
-    var sessionName = req.body.sessionName;
+    var roomId = req.body.roomId;
     // Role associated to this user
     // var role = users.find(u => (u.user === req.session.loggedUser)).role; 
 
@@ -272,26 +269,26 @@ app.post('/api-sessions/get-token', function (req, res) {
     // In this case, a JSON with the value we stored in the req.session object on login
     var serverData = JSON.stringify({ serverData: req.session.loggedUser });
 
-    console.log("Getting a token | {sessionName}={" + sessionName + "}");
+    console.log("Getting a token | {roomId}={" + roomId + "}");
     // Build tokenOptions object with the serverData and the role
     var tokenOptions = {
-        data: serverData,
+        // data: serverData,
         // role: role 
     };
 
-    if (mapSessions[sessionName]) {
+    if (mapSessions[roomId]) {
         // Session already exists
-        console.log('Existing session ' + sessionName);
+        console.log('Existing room ' + roomId);
 
         // Get the existing Session from the collection
-        var mySession = mapSessions[sessionName];
+        var mySession = mapSessions[roomId];
 
         // Generate a new token asynchronously with the recently created tokenOptions
         mySession.generateToken(tokenOptions)
             .then(token => {
 
                 // Store the new token in the collection of tokens
-                mapSessionNamesTokens[sessionName].push(token);
+                mapSessionNamesTokens[roomId].push(token);
 
                 // Return the token to the client
                 res.status(200).send({
@@ -303,22 +300,22 @@ app.post('/api-sessions/get-token', function (req, res) {
             });
     } else {
         // New session
-        console.log('New session ' + sessionName);
+        console.log('New session ' + roomId);
 
         // Create a new OpenVidu Session asynchronously
         OV.createSession(properties)
             .then(session => {
                 // Store the new Session in the collection of Sessions
-                mapSessions[sessionName] = session;
+                mapSessions[roomId] = session;
                 // Store a new empty array in the collection of tokens
-                mapSessionNamesTokens[sessionName] = [];
+                mapSessionNamesTokens[roomId] = [];
                 // console.log(util.inspect( session))
                 // Generate a new token asynchronously with the recently created tokenOptions
                 session.generateToken(tokenOptions)
                     .then(token => {
 
                         // Store the new token in the collection of tokens
-                        mapSessionNamesTokens[sessionName].push(token);
+                        mapSessionNamesTokens[roomId].push(token);
 
                         // Return the Token to the client
                         res.status(200).send({
@@ -340,20 +337,20 @@ app.post('/api-sessions/get-token', function (req, res) {
 app.post('/api-sessions/remove-user', function (req, res) {
 
     // Retrieve params from POST body
-    var sessionName = req.body.sessionName;
+    var roomId = req.body.roomId;
     var token = req.body.token;
-    console.log('Removing user | {sessionName, token}={' + sessionName + ', ' + token + '}');
+    console.log('Removing user | {roomId, token}={' + roomId + ', ' + token + '}');
 
     // If the session exists
-    if (mapSessions[sessionName] && mapSessionNamesTokens[sessionName]) {
-        var tokens = mapSessionNamesTokens[sessionName];
+    if (mapSessions[roomId] && mapSessionNamesTokens[roomId]) {
+        var tokens = mapSessionNamesTokens[roomId];
         var index = tokens.indexOf(token);
 
         // If the token exists
         if (index !== -1) {
             // Token removed
             tokens.splice(index, 1);
-            console.log(sessionName + ': ' + tokens.toString());
+            console.log(roomId + ': ' + tokens.toString());
         } else {
             var msg = 'Problems in the app server: the TOKEN wasn\'t valid';
             console.log(msg);
@@ -361,8 +358,8 @@ app.post('/api-sessions/remove-user', function (req, res) {
         }
         if (tokens.length == 0) {
             // Last user left: session must be removed
-            console.log(sessionName + ' empty!');
-            delete mapSessions[sessionName];
+            console.log("Room with id "+ roomId + ' empty!');
+            delete mapSessions[roomId];
         }
         res.status(200).send();
     } else {
