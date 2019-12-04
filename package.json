@@ -22,10 +22,13 @@
     "btoa": "^1.2.1",
     "express": "4.16.4",
     "express-session": "1.16.1",
+    "external-ip": "^2.1.1",
+    "ip": "^1.1.5",
     "kafka-node": "^4.1.3",
     "node-client": "^0.1.17",
     "nodemon": "^1.19.4",
     "openvidu-node-client": "2.11.0",
+    "public-ip": "^4.0.0",
     "request": "^2.88.0"
   }
 }

@@ -3,6 +3,7 @@ var session;
 var roomId;	// Name of the video session the user will connect to
 var token;			// Token retrieved from OpenVidu Server
 var sessionId;
+var loggedIn=false;
 /* OPENVIDU METHODS */
 //IN DEV?GRANA1 SMO
 function joinSession() {
@@ -23,22 +24,28 @@ function joinSession() {
 		// --- 3) Specify the actions when events take place in the session ---
 
 		// On every new Stream received...
+		logIn(()=>{
 		session.on('streamCreated', (event) => {
-			var userName = $("#user").val();
+			loggedIn;
+			console.log(loggedIn);
+			console.log("ON STREAM CREATED");
 			// Subscribe to the Stream to receive it
 			// HTML video will be appended to element with 'video-container' id
-			if (isSubscriber(userName)) {
+			if (userRole) {
+				console.log("ON STREAM CREATED IF SUBSCRIBER");
 				var subscriber = session.subscribe(event.stream, 'video-container');
 				// if (subscriber == isPublisher) { subscriber = null };
 				// When the HTML video has been appended to DOM...
 				subscriber.on('videoElementCreated', (event) => {
+					// logIn();
 					var userData = { userName: roomId }; //provericemo ovo
 					// Add a new HTML element for the user's name and nickname over its video
 					appendUserData(event.element, userData);
-					console.log("OVO VIDIS AKO SI SUBSCRIBER")
+					console.log("POSLE STREAMA OVO VIDIS AKO SI SUBSCRIBER")
 				});
 			} else {
 				console.log("Ne mozes da vidis stream-publisher si");
+				console.log("ON STREAM CREATED IF PUBLISHER");
 			}
 		});
 
@@ -51,14 +58,14 @@ function joinSession() {
 		// --- 4) Connect to the session passing the retrieved token and some more data from
 		//        the client (in this case a JSON with the nickname chosen by the user) ---
 
-
+		
 		session.connect(token)
 			.then(() => {
-
+				
 				// --- 5) Set page layout for active call ---
 				var path = (location.pathname.slice(-1) == "/" ? location.pathname : location.pathname + "/");
 				window.history.pushState("", "", path + '#' + roomId);
-				console.log("evo session id-ja iz url-a " + roomId);
+				console.log("evo room id-ja posle CONNECT-a " + roomId);
 				// urlId = sessionId;
 				var userName = $("#user").val();
 				$('#session-title').text(roomId);
@@ -70,8 +77,10 @@ function joinSession() {
 				// trying to publish its stream. Even if someone modified the client's code and
 				// published the stream, it wouldn't work if the token sent in Session.connect
 				// method is not recognized as 'PUBLIHSER' role by OpenVidu Server
-				if (!isSubscriber(userName)) {
-
+				
+				//ubacen login ovde
+				if (!userRole) {
+                    console.log("AFTER CONNECT IF IS PUBLISHER");
 					// --- 6) Get your own camera stream ---
 
 					var publisher = OV.initPublisher();
@@ -94,11 +103,15 @@ function joinSession() {
 					// --- 8) Publish your stream ---
 
 					session.publish(publisher);
-					sessionId = session.sessionId
-					console.log("OpenVidu session id ",sessionId);
+					sessionId = session.sessionId;
+					console.log("OpenVidu session id ", sessionId);
+					console.log("(AFTER CONNECT) i posle PUBLISH-a ");
 					sendSessionFromFront();
+					loggedIn;
 				} else {
-					console.warn('You don\'t have permission to publish');
+					console.log("AFTER CONNECT IF IT IS SUBSCRIBER")
+					console.warn('(AFTER CONNECT) You dont have permission to publish');
+					// logIn();
 					// Show SUBSCRIBER message in main video
 				}
 			})
@@ -106,7 +119,7 @@ function joinSession() {
 				console.warn('There was an error connecting to the session:', error.code, error.message);
 			});
 	});
-
+	});
 	return false;
 }
 
@@ -130,7 +143,7 @@ function leaveSession() {
 
 /* APPLICATION REST METHODS */
 
-function logIn() {
+function logIn(callback) {
 	var user = $("#user").val(); // Username
 	var pass = $("#pass").val(); // Password
 
@@ -144,8 +157,15 @@ function logIn() {
 			$("#logged").show();
 			// Random nickName and session
 			console.log(response);
+			console.log(response.role);
+			userRole=response.role;
+			console.log("AFTER YOU HAVE LOGGED IN ");
+			loggedIn=true;
+			callback();
+			
 		}
 	);
+	// debugger;
 }
 
 function showLogIn() {
@@ -183,20 +203,26 @@ function getToken(callback) {
 function sendSessionFromFront() {
 	//globalSessionId = globalSessionId; // Video-call chosen by the user
 	// urlId = urlId;
-//	console.log(globalSessionId);
+	//	console.log(globalSessionId);
 	httpPostRequest(
 		'api-sessions/sendSessionFromFront',
 		{
 			sessionId: sessionId,
-			roomId:roomId
+			roomId: roomId
 		},
 		'Request gone WRONG:',
 		(response) => {
-			console.log("Iz send session-a " + JSON.stringify(response));
-			console.log("evo session id-ja iz send session funkcije " + sessionId);
+			//console.log("Response iz send session-a " + JSON.stringify(response));
+			//console.log("evo session id-ja iz send session funkcije " + sessionId);
 		}
 	);
 }
+
+
+	function redirect() {
+		window.location = "/"
+	}
+
 
 function removeUser() {
 	httpPostRequest(
@@ -206,23 +232,23 @@ function removeUser() {
 		(response) => {
 
 			console.warn("You have been removed from session " + roomId);
-			debugger;
 		}
 	);
 }
 
-function showRecording() {
-	httpGetRequest(
-		`https://localhost:4443/api/recordings/${sessionId}`,
-		{},
-		'Failed to fetch recordings',
-		res => {
-			console.log("Ovde vidimo recording :" + JSON.stringify(res));
-			globalRes = res;
-			return JSON.stringify(res);
-		}
-	);
-}
+
+// function showRecording() {
+// 	httpGetRequest(
+// 		`https://localhost:4443/api/recordings/${sessionId}`,
+// 		{},
+// 		'Failed to fetch recordings',
+// 		res => {
+// 			console.log("Ovde vidimo recording :" + JSON.stringify(res));
+// 			globalRes = res;
+// 			return JSON.stringify(res);
+// 		}
+// 	);
+// }
 
 function httpPostRequest(url, body, errorMsg, callback) {
 	var http = new XMLHttpRequest();
@@ -283,7 +309,7 @@ window.addEventListener('load', function () {
 	// console.log("POSLE GET SESSION-NECES GA MAJCI TRALALALA IDEMO NIIIIS");
 	if (roomId) {
 		// The URL has a session id. Join the room right away
-		console.log("Subscribing to a session with url  " + roomId);
+		console.log("Subscribing to a room with id  " + roomId);
 		//joinSession();
 		$('#join').show();
 		$('#session').hide();
@@ -301,7 +327,7 @@ window.onbeforeunload = () => { // Gracefully leave session
 		removeUser();
 		leaveSession();
 	}
-	logOut();
+	// logOut();
 }
 
 function appendUserData(videoElement, connection) {
@@ -394,4 +420,3 @@ function makeid(length) {
 }
 
 //  console.log(makeid(12));
-console.log("evo room id-ja pre starta " + roomId)

@@ -24,8 +24,12 @@ var session = require('express-session');
 var https = require('https');
 var bodyParser = require('body-parser'); // Pull information from HTML POST (express4)
 var app = express(); // Create our app with express
+var publicIp = require("public-ip");
+var getIP = require('external-ip')();
 var sessionId;
 var roomId;
+var publicIpAddress;
+var fullUrl;
 // Server configuration
 app.use(session({
     saveUninitialized: true,
@@ -50,6 +54,35 @@ var options = {
     cert: fs.readFileSync('openviducert.pem')
 };
 
+var server = https.createServer(options, app).listen(5000, function () {
+    console.log('App running at 5000')
+});
+
+// var publicAddress=publicIp.v4().then(ip => {
+//     console.log("your public ip address", ip);
+//     var fullUrl=`https://${ip}:${server.address().port}/#`;
+//     console.log(fullUrl);
+//   });
+
+// console.log(publicAddress);
+
+
+function getIpC(callback) {
+    getIP((err, ip) => {
+        if (err) {
+            // every service in the list has failed
+            throw err;
+        }
+        console.log("This is external ip " + ip);
+        fullUrl = `https://${ip}:${server.address().port}/#`;
+        console.log(fullUrl);
+        callback();
+    });
+}
+
+
+console.log(`EVO GA PORT ${server.address().port}`);
+
 var Producer = kafka.Producer,
     client = new kafka.KafkaClient(),
     producer = new Producer(client);
@@ -62,9 +95,7 @@ var Consumer = kafka.Consumer,
         }
     );
 
-https.createServer(options, app).listen(5000, function () {
-    console.log('App running at 5000')
-});
+
 
 // Mock database
 var users = [{
@@ -167,54 +198,70 @@ consumer.on('offsetOutOfRange', function (err) {
 // });
 
 function sendFetchedSession(res, req) {
-    // var sessionId = globalSessionId;
-    request({
+    getIpC(() => {
+        // var sessionId = globalSessionId;
+        request({
 
-        url: `https://localhost:4443/api/sessions/${sessionId}`,
+            url: `https://${OPENVIDU_URL}/api/sessions/${sessionId}`,
 
-        method: "GET",
+            method: "GET",
 
-        headers: {
-            "Access-Control-Allow-Origin": "*",
-            "Authorization": "Basic " + btoa("OPENVIDUAPP:MY_SECRET")
-        }
+            headers: {
+                "Access-Control-Allow-Origin": "*",
+                "Authorization": "Basic " + btoa("OPENVIDUAPP:MY_SECRET")
+            }
 
-    }, function (error, response, body) {
+        }, function (error, response, body) {
 
-        if (!error && response.statusCode === 200) {
-            bodyObject = JSON.parse(body);
-            bodyObject.roomId = roomId;
-            newResponse = JSON.stringify(bodyObject); // object = ""
-            console.log("Evo ga isparsirani body za Kafku  : " + newResponse);
-            payloads = [
-                { topic: "Streams", messages: newResponse, partition: 0 }
-            ];
-            producer.send(payloads, function (err, data) {
-                console.log(err);
-                // console.log(data);vraticemo
-            });
-            return;
+            if (!error && response.statusCode === 200) {
+                bodyObject = JSON.parse(body);
+                bodyObject.roomId = roomId;
+                //  NAPRAVICEMO OBJEKAT!!!   i saljemo bodyObject1
+                bodyObject1 = {
 
-        } else {
+                    roomUrl: `${fullUrl}${roomId}`,
+                    sessionId: bodyObject.sessionId,
+                    connectionId: bodyObject.connections.content[0].connectionId,
+                    createdAt: bodyObject.connections.content[0].createdAt,
+                    location: bodyObject.connections.content[0].location,
+                    platform: bodyObject.connections.content[0].platform,
+                    token: bodyObject.connections.content[0].token,
 
-            console.log("error: " + error);
+                }
+                console.log(Object.keys(bodyObject.connections.content[0]));
+                newResponse = JSON.stringify(bodyObject1); // object = ""
 
-            // console.log(body);vraticemo
+                console.log("Evo ga isparsirani body za Kafku  : " + newResponse);
 
-            if (response) {
+                payloads = [
+                    { topic: "Streams", messages: newResponse, partition: 0 }
+                ];
+                producer.send(payloads, function (err, data) {
+                    console.log(err);
+                    // console.log(data);vraticemo
+                });
+                return;
 
-                console.log("response.statusCode: " + response.statusCode);
+            } else {
 
-                console.log("response.statusText: " + response.statusText);
+                console.log("error: " + error);
+
+                // console.log(body);vraticemo
+
+                if (response) {
+
+                    console.log("response.statusCode: " + response.statusCode);
+
+                    console.log("response.statusText: " + response.statusText);
+
+                }
+
+                return;
 
             }
 
-            return;
-
-        }
-
-    });
-
+        })
+    })
 };
 
 
@@ -224,19 +271,25 @@ app.post('/api-login/login', function (req, res) {
     // Retrieve params from POST body
     var user = req.body.user;
     var pass = req.body.pass;
+    var role;
     console.log("Logging in | {user, pass}={" + user + ", " + pass + "}");
 
     if (login(user, pass)) { // Correct user-pass
+        role = OpenViduRole.SUBSCRIBER;
         // Validate session and return OK 
         // Value stored in req.session allows us to identify the user in future requests
-        console.log("'" + user + "' has logged in");
+        console.log("'" + user + "' has logged in" + pass + role);
         req.session.loggedUser = user;
-        res.status(200).send("You have logged in");
+        // role=req.session.loggedUser.role;
+        res.status(200).send({ user: user, message: "You have logged in successfully", role: role, pass: pass });
+        // res.send();
     } else { // Wrong user-pass
         // Invalidate session and return error
-        console.log("'" + user + "' invalid credentials");
-        req.session.destroy();
-        res.status(401).send('User/Pass incorrect');
+        // console.log("'" + user + "' invalid credentials");
+        // req.session.destroy();
+        // res.status(401).send('User/Pass incorrect');
+        res.status(200).send({ user: user, message: "You are streaming successfully,but you are not signed in" });
+        console.log(`this is ${role}`);
     }
 });
 
@@ -246,10 +299,13 @@ app.post('/api-sessions/sendSessionFromFront', function (req, res) {
     sessionId = req.body.sessionId;
     roomId = req.body.roomId;
     console.log("Evo nam ga originalni session id  " + sessionId);
+    console.log("Evo nam ga room id  " + roomId);
+    res.status(200).send({ sessionId: sessionId, message: "Evo odgovora", roomId: roomId })
     sendFetchedSession();
 
 });
-// Logout
+//Logout
+
 // app.post('/api-login/logout', function (req, res) {
 //     console.log("'" + req.session.loggedUser + "' has logged out");
 //     req.session.destroy();
@@ -263,8 +319,14 @@ app.post('/api-sessions/get-token', function (req, res) {
     // The video-call to connect
     var roomId = req.body.roomId;
     // Role associated to this user
-    // var role = users.find(u => (u.user === req.session.loggedUser)).role; 
-
+    var role;
+    if (role) {
+        role = users.find(u => (u.user === req.session.loggedUser)).role;
+    }
+    else {
+        role = OpenViduRole.PUBLISHER
+    }
+    //  if(!role){(req.session.loggedUser).role===subscriber}
     // Optional data to be passed to other users when this user connects to the video-call
     // In this case, a JSON with the value we stored in the req.session object on login
     var serverData = JSON.stringify({ serverData: req.session.loggedUser });
@@ -273,7 +335,7 @@ app.post('/api-sessions/get-token', function (req, res) {
     // Build tokenOptions object with the serverData and the role
     var tokenOptions = {
         // data: serverData,
-        // role: role 
+        role: role
     };
 
     if (mapSessions[roomId]) {
@@ -349,7 +411,11 @@ app.post('/api-sessions/remove-user', function (req, res) {
         // If the token exists
         if (index !== -1) {
             // Token removed
+            // console.log("INDEKSI PRE "+JSON.stringify(index));
+            // console.log("TOKENSI PRE SPLICEA "+JSON.stringify(tokens));
             tokens.splice(index, 1);
+            // console.log("TOKENSI POSLE "+JSON.stringify(tokens));
+            // console.log("INDEKSI "+JSON.stringify(index));
             console.log(roomId + ': ' + tokens.toString());
         } else {
             var msg = 'Problems in the app server: the TOKEN wasn\'t valid';
@@ -358,7 +424,7 @@ app.post('/api-sessions/remove-user', function (req, res) {
         }
         if (tokens.length == 0) {
             // Last user left: session must be removed
-            console.log("Room with id "+ roomId + ' empty!');
+            console.log("Room with id " + roomId + ' empty!');
             delete mapSessions[roomId];
         }
         res.status(200).send();
@@ -399,4 +465,6 @@ function getBasicAuth() {
 //       count += 1;
 //     });
 //   }, 5000);
+
+
 

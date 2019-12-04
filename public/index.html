@@ -45,7 +45,8 @@
 					<label>Pass</label><input class="form-control" type="password" id="pass" required>
 				</p>
 				<p class="text-center">
-					<button class="btn btn-lg btn-info" onclick="logIn(),joinSession()">Log in</button>
+					<button class="btn btn-lg btn-info" onclick="joinSession()">Log in</button>  
+					<!-- izbacili smo login -->
 				</p>
 			</form> 
 			
@@ -77,8 +78,18 @@
 			<div id="session" style="display: none;">
 				<div>
 					<h1 id="session-title"></h1>
-				<a href= "/">	<input class="btn btn-large btn-danger" type="button" id="buttonLeaveSession" onmouseup="removeUser(); leaveSession()" value="Leave session"></a>
-				</div>
+				<!-- <input class="btn btn-large btn-danger" type="button" id="buttonLeaveSession" onclick="removeUser(); leaveSession(); redirect()" value="Leave session"> -->
+				<p class="text-center">
+				<button class="btn btn-lg btn-danger" onclick="removeUser(); leaveSession(); redirect()">Leave this session</button>
+			    </p>
+				<!-- "window.location='/my/link/location';"
+				<input class="btn btn-large btn-danger" type="button" id="buttonLeaveSession" onclick="removeUser(); leaveSession()" "window.location='/my/link/location';" value="Leave session">
+				<a href= "https://localhost:5000/"  class="btn btn-default" type="button" id="buttonLeaveSession" onclick="removeUser();leaveSession()" >Leave session</a> 
+			<form action="https://localhost:5000/">
+				<input type="submit" class="btn btn-default" value="Go to Google" onclick="removeUser();leaveSession()" />
+			</form>	 -->
+			
+			</div>
 				<div id="main-video" class="col-md-6">
 					<!-- <p class="nickName"></p> -->
 					<p class="userName"></p>
