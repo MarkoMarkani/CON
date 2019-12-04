@@ -5,7 +5,7 @@ var token;			// Token retrieved from OpenVidu Server
 var sessionId;
 var loggedIn=false;
 /* OPENVIDU METHODS */
-//IN DEV?GRANA1 SMO
+//ON DEV?GRANA1 
 function joinSession() {
 	roomId = window.location.hash.slice(1);
 	if (!roomId) {
@@ -29,12 +29,11 @@ function joinSession() {
 			loggedIn;
 			console.log(loggedIn);
 			console.log("ON STREAM CREATED");
-			// Subscribe to the Stream to receive it
-			// HTML video will be appended to element with 'video-container' id
+	
 			if (userRole) {
 				console.log("ON STREAM CREATED IF SUBSCRIBER");
 				var subscriber = session.subscribe(event.stream, 'video-container');
-				// if (subscriber == isPublisher) { subscriber = null };
+				
 				// When the HTML video has been appended to DOM...
 				subscriber.on('videoElementCreated', (event) => {
 					// logIn();
@@ -55,30 +54,20 @@ function joinSession() {
 			removeUserData(event.stream.connection);
 		});
 
-		// --- 4) Connect to the session passing the retrieved token and some more data from
-		//        the client (in this case a JSON with the nickname chosen by the user) ---
-
-		
 		session.connect(token)
 			.then(() => {
 				
 				// --- 5) Set page layout for active call ---
 				var path = (location.pathname.slice(-1) == "/" ? location.pathname : location.pathname + "/");
 				window.history.pushState("", "", path + '#' + roomId);
-				console.log("evo room id-ja posle CONNECT-a " + roomId);
+				console.log("Here is room id after CONNECT " + roomId);
 				// urlId = sessionId;
 				var userName = $("#user").val();
 				$('#session-title').text(roomId);
 				$('#join').hide();
 				$('#session').show();
 
-
-				// Here we check somehow if the user has 'PUBLISHER' role before
-				// trying to publish its stream. Even if someone modified the client's code and
-				// published the stream, it wouldn't work if the token sent in Session.connect
-				// method is not recognized as 'PUBLIHSER' role by OpenVidu Server
 				
-				//ubacen login ovde
 				if (!userRole) {
                     console.log("AFTER CONNECT IF IS PUBLISHER");
 					// --- 6) Get your own camera stream ---
@@ -111,8 +100,7 @@ function joinSession() {
 				} else {
 					console.log("AFTER CONNECT IF IT IS SUBSCRIBER")
 					console.warn('(AFTER CONNECT) You dont have permission to publish');
-					// logIn();
-					// Show SUBSCRIBER message in main video
+			
 				}
 			})
 			.catch(error => {
@@ -186,8 +174,7 @@ function logOut() {
 }
 
 function getToken(callback) {
-	//roomId = $("#roomId").val(); // Video-call chosen by the user
-	//roomId = "Session"; // Video-call chosen by the user
+
 	httpPostRequest(
 		'api-sessions/get-token',
 		{ roomId: roomId },
@@ -201,9 +188,7 @@ function getToken(callback) {
 }
 
 function sendSessionFromFront() {
-	//globalSessionId = globalSessionId; // Video-call chosen by the user
-	// urlId = urlId;
-	//	console.log(globalSessionId);
+
 	httpPostRequest(
 		'api-sessions/sendSessionFromFront',
 		{
@@ -212,8 +197,7 @@ function sendSessionFromFront() {
 		},
 		'Request gone WRONG:',
 		(response) => {
-			//console.log("Response iz send session-a " + JSON.stringify(response));
-			//console.log("evo session id-ja iz send session funkcije " + sessionId);
+		console.log(response);
 		}
 	);
 }
@@ -236,19 +220,6 @@ function removeUser() {
 	);
 }
 
-
-// function showRecording() {
-// 	httpGetRequest(
-// 		`https://localhost:4443/api/recordings/${sessionId}`,
-// 		{},
-// 		'Failed to fetch recordings',
-// 		res => {
-// 			console.log("Ovde vidimo recording :" + JSON.stringify(res));
-// 			globalRes = res;
-// 			return JSON.stringify(res);
-// 		}
-// 	);
-// }
 
 function httpPostRequest(url, body, errorMsg, callback) {
 	var http = new XMLHttpRequest();
@@ -306,11 +277,10 @@ function httpGetRequest(url, body, errorMsg, callback) {
 window.addEventListener('load', function () {
 	roomId = window.location.hash.slice(1); // For 'https://myurl/#roomId', sessionId would be 'roomId'
 	console.log("Before Joining Session");
-	// console.log("POSLE GET SESSION-NECES GA MAJCI TRALALALA IDEMO NIIIIS");
+
 	if (roomId) {
 		// The URL has a session id. Join the room right away
 		console.log("Subscribing to a room with id  " + roomId);
-		//joinSession();
 		$('#join').show();
 		$('#session').hide();
 	} else {
@@ -406,9 +376,7 @@ function cleanSessionView() {
 }
 
 /* APPLICATION BROWSER METHODS */
-// function randomString() {
-// 	return Math.random().toString(36).slice(2);
-// }
+
 function makeid(length) {
 	var result = '';
 	var characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -419,4 +387,4 @@ function makeid(length) {
 	return result;
 }
 
-//  console.log(makeid(12));
+

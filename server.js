@@ -24,11 +24,9 @@ var session = require('express-session');
 var https = require('https');
 var bodyParser = require('body-parser'); // Pull information from HTML POST (express4)
 var app = express(); // Create our app with express
-var publicIp = require("public-ip");
 var getIP = require('external-ip')();
 var sessionId;
 var roomId;
-var publicIpAddress;
 var fullUrl;
 // Server configuration
 app.use(session({
@@ -58,14 +56,6 @@ var server = https.createServer(options, app).listen(5000, function () {
     console.log('App running at 5000')
 });
 
-// var publicAddress=publicIp.v4().then(ip => {
-//     console.log("your public ip address", ip);
-//     var fullUrl=`https://${ip}:${server.address().port}/#`;
-//     console.log(fullUrl);
-//   });
-
-// console.log(publicAddress);
-
 
 function getIpC(callback) {
     getIP((err, ip) => {
@@ -80,8 +70,6 @@ function getIpC(callback) {
     });
 }
 
-
-console.log(`EVO GA PORT ${server.address().port}`);
 
 var Producer = kafka.Producer,
     client = new kafka.KafkaClient(),
@@ -146,7 +134,7 @@ var mapSessions = {};
 // Collection to pair session names with tokens
 var mapSessionNamesTokens = {};
 
-//console.log("App listening on port 5000");
+
 
 /* CONFIGURATION */
 
@@ -154,16 +142,6 @@ var mapSessionNamesTokens = {};
 
 /* REST API */
 
-// producer.on('ready', function () {
-//     console.log('Producer is ready');
-//     payloads = {
-//         topic: 'topicName',
-//         messages: ['message body'], // multi messages should be a array, single message can be just a string or a KeyedMessage instance
-//         key: 'theKey', // only needed when using keyed partitioner (optional)
-//         partition: 0, // default 0 (optional)
-//         attributes: 2 // default: 0 used for compression (optional)
-//     }
-// });
 
 producer.on('error', function (err) {
     console.log('Producer is in error state');
@@ -182,24 +160,11 @@ consumer.on('offsetOutOfRange', function (err) {
     // console.log('offsetOutOfRange:', err); vraticemo
 });
 
-// app.get('/kafka', function (req, res) {
-//     res.json({ greeting: 'Kafka Producer' })
-// });
 
-// app.post('/sendMsg', function (req, res) {
-//     var sentMessage = JSON.stringify(req.body.message);
-//     payloads = [
-//         { topic: req.body.topic, messages: sentMessage, partition: 0 }
-//     ];
-//     producer.send(payloads, function (err, data) {
-//         res.json(data);
-//     });
-
-// });
 
 function sendFetchedSession(res, req) {
     getIpC(() => {
-        // var sessionId = globalSessionId;
+        
         request({
 
             url: `https://${OPENVIDU_URL}/api/sessions/${sessionId}`,
@@ -216,7 +181,7 @@ function sendFetchedSession(res, req) {
             if (!error && response.statusCode === 200) {
                 bodyObject = JSON.parse(body);
                 bodyObject.roomId = roomId;
-                //  NAPRAVICEMO OBJEKAT!!!   i saljemo bodyObject1
+                //  Making new object!!!   and send bodyObject1
                 bodyObject1 = {
 
                     roomUrl: `${fullUrl}${roomId}`,
@@ -238,7 +203,7 @@ function sendFetchedSession(res, req) {
                 ];
                 producer.send(payloads, function (err, data) {
                     console.log(err);
-                    // console.log(data);vraticemo
+                    // console.log(data); will come back
                 });
                 return;
 
@@ -246,7 +211,7 @@ function sendFetchedSession(res, req) {
 
                 console.log("error: " + error);
 
-                // console.log(body);vraticemo
+                // console.log(body); will come back
 
                 if (response) {
 
@@ -326,7 +291,7 @@ app.post('/api-sessions/get-token', function (req, res) {
     else {
         role = OpenViduRole.PUBLISHER
     }
-    //  if(!role){(req.session.loggedUser).role===subscriber}
+
     // Optional data to be passed to other users when this user connects to the video-call
     // In this case, a JSON with the value we stored in the req.session object on login
     var serverData = JSON.stringify({ serverData: req.session.loggedUser });
@@ -411,11 +376,9 @@ app.post('/api-sessions/remove-user', function (req, res) {
         // If the token exists
         if (index !== -1) {
             // Token removed
-            // console.log("INDEKSI PRE "+JSON.stringify(index));
-            // console.log("TOKENSI PRE SPLICEA "+JSON.stringify(tokens));
+          
             tokens.splice(index, 1);
-            // console.log("TOKENSI POSLE "+JSON.stringify(tokens));
-            // console.log("INDEKSI "+JSON.stringify(index));
+
             console.log(roomId + ': ' + tokens.toString());
         } else {
             var msg = 'Problems in the app server: the TOKEN wasn\'t valid';
@@ -454,17 +417,7 @@ function getBasicAuth() {
     return 'Basic ' + (new Buffer('OPENVIDUAPP:' + OPENVIDU_SECRET).toString('base64'));
 }
 
-/* AUXILIARY METHODS */
-// setInterval(function() {
-//     payloads = [
-//       { topic: "cat", messages: `I have ${count} cats`, partition: 0 }
-//     ];
 
-//     producer.send(payloads, function(err, data) {
-//       console.log(data);
-//       count += 1;
-//     });
-//   }, 5000);
 
 
 
