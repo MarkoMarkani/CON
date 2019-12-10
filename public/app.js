@@ -96,7 +96,6 @@ function joinSession() {
 					console.log("OpenVidu session id ", sessionId);
 					console.log("(AFTER CONNECT) i posle PUBLISH-a ");
 					sendSessionFromFront();
-					loggedIn;
 				} else {
 					console.log("AFTER CONNECT IF IT IS SUBSCRIBER")
 					console.warn('(AFTER CONNECT) You dont have permission to publish');
@@ -110,6 +109,19 @@ function joinSession() {
 	});
 	return false;
 }
+
+function showSessions() {
+	httpGetRequest(
+		`https://localhost:4443/api/sessions`,
+		{},
+		'Failed to fetch sessions',
+		res => {
+			console.log("Here we see all the sessions :" + JSON.stringify(res));
+			return JSON.stringify(res);
+		}
+	);
+}
+
 
 function leaveSession() {
 
@@ -177,7 +189,9 @@ function getToken(callback) {
 
 	httpPostRequest(
 		'api-sessions/get-token',
-		{ roomId: roomId },
+		{ 
+			// roomId:roomId
+		 },
 		'Request of TOKEN gone WRONG:',
 		(response) => {
 			token = response[0]; // Get token from response

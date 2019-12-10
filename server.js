@@ -15,7 +15,8 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"
 
 // Node imports
 var express = require('express');
-var util = require('util')
+var util = require('util');
+var cors = require('cors');
 var kafka = require('kafka-node');
 var request = require('request');
 var fs = require('fs');
@@ -45,7 +46,7 @@ app.use(bodyParser.json({
 app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
     extended: true
 })); // Parse application/vnd.api+json as json
-
+app.use(cors());
 // Listen (start app with node server.js)
 var options = {
     key: fs.readFileSync('openvidukey.pem'),
@@ -162,9 +163,9 @@ consumer.on('offsetOutOfRange', function (err) {
 
 
 
-function sendFetchedSession(res, req) {
+function sendFetchedSession(callback) {
     getIpC(() => {
-        
+
         request({
 
             url: `https://${OPENVIDU_URL}/api/sessions/${sessionId}`,
@@ -182,7 +183,7 @@ function sendFetchedSession(res, req) {
                 bodyObject = JSON.parse(body);
                 bodyObject.roomId = roomId;
                 //  Making new object!!!   and send bodyObject1
-                bodyObject1 = {
+                var bodyObject1 = {
 
                     roomUrl: `${fullUrl}${roomId}`,
                     sessionId: bodyObject.sessionId,
@@ -204,6 +205,7 @@ function sendFetchedSession(res, req) {
                 producer.send(payloads, function (err, data) {
                     console.log(err);
                     // console.log(data); will come back
+                    callback(bodyObject1);
                 });
                 return;
 
@@ -224,11 +226,56 @@ function sendFetchedSession(res, req) {
                 return;
 
             }
-
         })
     })
 };
 
+
+function postFiware(bodyObject1) {
+    request({
+        method: "POST",
+        headers: {
+            //           "Fiware-Service": "waste4think",
+            //           "Fiware-ServicePath": "/deusto/w4t/cascais/real",
+            //           "X-Auth-Token": "DevelopmentTest",
+            "Access-Control-Allow-Origin": "*",
+            "Authorization": "Basic " + btoa("OPENVIDUAPP:MY_SECRET"),
+            "options": "keyValues"
+        },
+        uri: "http://127.0.0.1:1026/v2/entities?options=keyValues",
+        json: true,
+        body: {
+            id: bodyObject1.connectionId,
+            type: "Stream",
+            sessionId: bodyObject1.sessionId,
+            createdAt: bodyObject1.createdAt,
+            location: bodyObject1.location,
+            platform: bodyObject1.platform
+        }
+    },
+        function (error, response, body) {
+            if (error) { console.log(error) }
+            console.log("RESPONSE IZ FIWAREA " + JSON.stringify(response));
+            // console.log("NEW response"+newResponse);
+            console.log("BODY object" + JSON.stringify(bodyObject1));
+        }
+    )
+
+}
+
+
+app.post('/api-sessions/sendSessionFromFront', function (req, res) {
+
+    // Retrieve params from POST body
+    sessionId = req.body.sessionId;
+    roomId = req.body.roomId;
+    console.log("Evo nam ga originalni session id  " + sessionId);
+    console.log("Evo nam ga room id  " + roomId);
+    res.status(200).send({ sessionId: sessionId, message: "Evo odgovora", roomId: roomId })
+    sendFetchedSession(postFiware);
+
+
+});
 
 // Login
 app.post('/api-login/login', function (req, res) {
@@ -258,17 +305,7 @@ app.post('/api-login/login', function (req, res) {
     }
 });
 
-app.post('/api-sessions/sendSessionFromFront', function (req, res) {
 
-    // Retrieve params from POST body
-    sessionId = req.body.sessionId;
-    roomId = req.body.roomId;
-    console.log("Evo nam ga originalni session id  " + sessionId);
-    console.log("Evo nam ga room id  " + roomId);
-    res.status(200).send({ sessionId: sessionId, message: "Evo odgovora", roomId: roomId })
-    sendFetchedSession();
-
-});
 //Logout
 
 // app.post('/api-login/logout', function (req, res) {
@@ -376,7 +413,7 @@ app.post('/api-sessions/remove-user', function (req, res) {
         // If the token exists
         if (index !== -1) {
             // Token removed
-          
+
             tokens.splice(index, 1);
 
             console.log(roomId + ': ' + tokens.toString());
@@ -417,7 +454,25 @@ function getBasicAuth() {
     return 'Basic ' + (new Buffer('OPENVIDUAPP:' + OPENVIDU_SECRET).toString('base64'));
 }
 
+// function getFiware() {
+//     request({
+//         method: "GET",
+//         headers: {
+//             //           "Fiware-Service": "waste4think",
+//             //           "Fiware-ServicePath": "/deusto/w4t/cascais/real",
+//             //           "X-Auth-Token": "DevelopmentTest",
+//             "Access-Control-Allow-Origin": "*",
+//             "Authorization": "Basic " + btoa("OPENVIDUAPP:MY_SECRET")
+//         },
+//         uri: "http://127.0.0.1:1026/v2/entities",
+//         json: true
+//     },
+//         function (error, response, body) {
+//             console.log("RESPONSE IZ FIWAREA " + JSON.stringify(response));
+//         }
+//     )
 
+// }
 
 
 
