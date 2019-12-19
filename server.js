@@ -1,5 +1,5 @@
 /* CONFIGURATION */
-
+//10.12.2019
 var OpenVidu = require('openvidu-node-client').OpenVidu;
 var Session = require('openvidu-node-client').Session;
 var OpenViduRole = require('openvidu-node-client').OpenViduRole;
@@ -90,16 +90,19 @@ var Consumer = kafka.Consumer,
 var users = [{
     user: "publisher1",
     pass: "pass",
+    unique:"12345",
     role: OpenViduRole.PUBLISHER
 },
 {
     user: "publisher2",
     pass: "pass",
+    unique:"67890",
     role: OpenViduRole.PUBLISHER
 },
 {
     user: "publisher3",
     pass: "pass",
+    unique:"98765",
     role: OpenViduRole.PUBLISHER
 },
 {
@@ -131,9 +134,9 @@ var properties = {
     defaultOutputMode: "INDIVIDUAL"//Recording.OutputMode.INDIVIDUAL
 };
 // Collection to pair session names with OpenVidu Session objects
-var mapSessions = {};
+var mapSessionObject = {};
 // Collection to pair session names with tokens
-var mapSessionNamesTokens = {};
+var mapSessionObjectToken = {};
 
 
 
@@ -141,8 +144,8 @@ var mapSessionNamesTokens = {};
 
 
 
-/* REST API */
 
+//KAFKA METHODS
 
 producer.on('error', function (err) {
     console.log('Producer is in error state');
@@ -163,6 +166,8 @@ consumer.on('offsetOutOfRange', function (err) {
 
 
 
+/* REST API */
+
 function sendFetchedSession(callback) {
     getIpC(() => {
 
@@ -176,7 +181,7 @@ function sendFetchedSession(callback) {
                 "Access-Control-Allow-Origin": "*",
                 "Authorization": "Basic " + btoa("OPENVIDUAPP:MY_SECRET")
             }
-
+    
         }, function (error, response, body) {
 
             if (!error && response.statusCode === 200) {
@@ -185,8 +190,9 @@ function sendFetchedSession(callback) {
                 //  Making new object!!!   and send bodyObject1
                 var bodyObject1 = {
 
-                    roomUrl: `${fullUrl}${roomId}`,
-                    sessionId: bodyObject.sessionId,
+                    // roomUrl: `${fullUrl}${roomId}`,
+                    streamPath:`C:/Users/marko.petrovic/Desktop/connexions/public/recordings/${bodyObject.sessionId}`,
+                    sessionId: `${fullUrl}${bodyObject.sessionId}`,
                     connectionId: bodyObject.connections.content[0].connectionId,
                     createdAt: bodyObject.connections.content[0].createdAt,
                     location: bodyObject.connections.content[0].location,
@@ -229,7 +235,7 @@ function sendFetchedSession(callback) {
         })
     })
 };
-
+ 
 
 function postFiware(bodyObject1) {
     request({
@@ -242,7 +248,7 @@ function postFiware(bodyObject1) {
             "Authorization": "Basic " + btoa("OPENVIDUAPP:MY_SECRET"),
             "options": "keyValues"
         },
-        uri: "http://127.0.0.1:1026/v2/entities?options=keyValues",
+        uri: "http://localhost:1026/v2/entities?options=keyValues",
         json: true,
         body: {
             id: bodyObject1.connectionId,
@@ -315,6 +321,19 @@ app.post('/api-login/login', function (req, res) {
 // });  
 
 // Get token (add new user to session)
+
+app.post('/api-sessions/create-session',function(req,res){
+
+
+    var resSession=OV.createSession(properties);
+    resSession.then((res)=>{Session.getSessionId})
+    res.status(200).send(resSession);
+}
+)
+
+
+
+
 app.post('/api-sessions/get-token', function (req, res) {
 
 
@@ -331,7 +350,7 @@ app.post('/api-sessions/get-token', function (req, res) {
 
     // Optional data to be passed to other users when this user connects to the video-call
     // In this case, a JSON with the value we stored in the req.session object on login
-    var serverData = JSON.stringify({ serverData: req.session.loggedUser });
+    // var serverData = JSON.stringify({ serverData: req.session.loggedUser }); vraticemo
 
     console.log("Getting a token | {roomId}={" + roomId + "}");
     // Build tokenOptions object with the serverData and the role
@@ -340,19 +359,19 @@ app.post('/api-sessions/get-token', function (req, res) {
         role: role
     };
 
-    if (mapSessions[roomId]) {
+    if (mapSessionObject[roomId]) {
         // Session already exists
         console.log('Existing room ' + roomId);
 
         // Get the existing Session from the collection
-        var mySession = mapSessions[roomId];
-
+        var mySession = mapSessionObject[roomId];
+        // console.log("Here is mySession "+util.inspect( mySession));
         // Generate a new token asynchronously with the recently created tokenOptions
         mySession.generateToken(tokenOptions)
             .then(token => {
 
                 // Store the new token in the collection of tokens
-                mapSessionNamesTokens[roomId].push(token);
+                mapSessionObjectToken[roomId].push(token);
 
                 // Return the token to the client
                 res.status(200).send({
@@ -370,16 +389,16 @@ app.post('/api-sessions/get-token', function (req, res) {
         OV.createSession(properties)
             .then(session => {
                 // Store the new Session in the collection of Sessions
-                mapSessions[roomId] = session;
+                mapSessionObject[roomId] = session;
                 // Store a new empty array in the collection of tokens
-                mapSessionNamesTokens[roomId] = [];
+                mapSessionObjectToken[roomId] = [];
                 // console.log(util.inspect( session))
                 // Generate a new token asynchronously with the recently created tokenOptions
                 session.generateToken(tokenOptions)
                     .then(token => {
 
                         // Store the new token in the collection of tokens
-                        mapSessionNamesTokens[roomId].push(token);
+                        mapSessionObjectToken[roomId].push(token);
 
                         // Return the Token to the client
                         res.status(200).send({
@@ -396,7 +415,7 @@ app.post('/api-sessions/get-token', function (req, res) {
     }
 
 });
-// console.log(sessionId);
+
 // Remove user from session
 app.post('/api-sessions/remove-user', function (req, res) {
 
@@ -406,8 +425,8 @@ app.post('/api-sessions/remove-user', function (req, res) {
     console.log('Removing user | {roomId, token}={' + roomId + ', ' + token + '}');
 
     // If the session exists
-    if (mapSessions[roomId] && mapSessionNamesTokens[roomId]) {
-        var tokens = mapSessionNamesTokens[roomId];
+    if (mapSessionObject[roomId] && mapSessionObjectToken[roomId]) {
+        var tokens = mapSessionObjectToken[roomId];
         var index = tokens.indexOf(token);
 
         // If the token exists
@@ -425,7 +444,7 @@ app.post('/api-sessions/remove-user', function (req, res) {
         if (tokens.length == 0) {
             // Last user left: session must be removed
             console.log("Room with id " + roomId + ' empty!');
-            delete mapSessions[roomId];
+            delete mapSessionObject[roomId];
         }
         res.status(200).send();
     } else {

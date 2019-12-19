@@ -32,6 +32,7 @@
     "openvidu-node-client": "^2.11.0",
     "promisify-node": "^0.5.0",
     "public-ip": "^4.0.0",
-    "request": "^2.88.0"
+    "request": "^2.88.0",
+    "request-promise": "^4.2.5"
   }
 }

@@ -1,0 +1,103 @@
+function joinSession() {
+// 	roomId = window.location.hash.slice(1);
+// 	if (!roomId) {
+// 		// If the user is joining to a new room
+// 		roomId = makeid(15);
+// 	}
+// 	getToken((token) => {
+// 		// --- 1) Get an OpenVidu object ---
+
+// 		OV = new OpenVidu();
+
+// 		// --- 2) Init a session ---
+
+// 		session = OV.initSession();
+
+// 		// --- 3) Specify the actions when events take place in the session ---
+
+// 		// On every new Stream received...
+// 		logIn(()=>{
+// 		session.on('streamCreated', (event) => {
+// 			loggedIn;
+// 			console.log(loggedIn);
+// 			console.log("ON STREAM CREATED");
+
+// 			if (userRole) {
+// 				console.log("ON STREAM CREATED IF SUBSCRIBER");
+// 				var subscriber = session.subscribe(event.stream, 'video-container');
+
+// 				// When the HTML video has been appended to DOM...
+// 				subscriber.on('videoElementCreated', (event) => {
+// 					// logIn();
+// 					var userData = { userName: roomId }; //provericemo ovo
+// 					// Add a new HTML element for the user's name and nickname over its video
+// 					appendUserData(event.element, userData);
+// 					console.log("POSLE STREAMA OVO VIDIS AKO SI SUBSCRIBER")
+// 				});
+// 			} else {
+// 				console.log("Ne mozes da vidis stream-publisher si");
+// 				console.log("ON STREAM CREATED IF PUBLISHER");
+// 			}
+// 		});
+
+// 		// On every Stream destroyed...
+// 		session.on('streamDestroyed', (event) => {
+// 			// Delete the HTML element with the user's name and nickname
+// 			removeUserData(event.stream.connection);
+// 		});
+
+// 		session.connect(token)
+// 			.then(() => {
+
+// 				// --- 5) Set page layout for active call ---
+// 				var path = (location.pathname.slice(-1) == "/" ? location.pathname : location.pathname + "/");
+// 				window.history.pushState("", "", path + '#' + roomId);
+// 				console.log("Here is room id after CONNECT " + roomId);
+// 				// urlId = sessionId;
+// 				var userName = $("#user").val();
+// 				$('#session-title').text(roomId);
+// 				$('#join').hide();
+// 				$('#session').show();
+
+
+// 				if (!userRole) {
+//                     console.log("AFTER CONNECT IF IS PUBLISHER");
+// 					// --- 6) Get your own camera stream ---
+
+// 					var publisher = OV.initPublisher();
+// 					$('#video-container').hide();
+// 					// --- 7) Specify the actions when events take place in our publisher ---
+
+// 					// When our HTML video has been added to DOM...
+// 					publisher.on('videoElementCreated', (event) => {
+// 						// Init the main video with ours and append our data
+// 						var userData = {
+// 							userName: userName
+// 						};
+// 						initMainVideo(event.element, userData);
+// 						appendUserData(event.element, userData);
+// 						$(event.element).prop('muted', true); // Mute local video
+// 						console.log("Trenutno se snima...")
+// 					});
+
+
+// 					// --- 8) Publish your stream ---
+
+// 					session.publish(publisher);
+// 					sessionId = session.sessionId;
+// 					console.log("OpenVidu session id ", sessionId);
+// 					console.log("(AFTER CONNECT) i posle PUBLISH-a ");
+// 					sendSessionFromFront();
+// 				} else {
+// 					console.log("AFTER CONNECT IF IT IS SUBSCRIBER")
+// 					console.warn('(AFTER CONNECT) You dont have permission to publish');
+
+// 				}
+// 			})
+// 			.catch(error => {
+// 				console.warn('There was an error connecting to the session:', error.code, error.message);
+// 			});
+// 	});
+// 	});
+ 	return false;
+ }
