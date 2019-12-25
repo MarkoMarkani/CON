@@ -6,6 +6,7 @@ var sessionId;
 var loggedIn = false;
 var OPENVIDU_SERVER_URL = "https://localhost:4443";
 var OPENVIDU_SERVER_SECRET = "MY_SECRET";
+var globalUserId;
 /* OPENVIDU METHODS */
 //ON DEV?GRANA1 
 function joinSession() {
@@ -14,9 +15,13 @@ function joinSession() {
 
 	// 	roomId = makeid(15);
 	// }
-
-
-	logIn().
+	// findIP.then()
+findIP.
+then(ip => {
+	console.log(ip);
+	return ip}).
+	then(value=>{
+	return logIn(value)}).
 		then(value => {
 			$("#name-user").text(user);
 			$("#not-logged").hide();
@@ -29,8 +34,9 @@ function joinSession() {
 		}).
 		then(value => {
 			console.log(value.role);
+			console.log(value.uid);
 			userRole = value.role;
-
+            globalUserId=value.uid;
 			OV = new OpenVidu();
 
 			session = OV.initSession();
@@ -62,18 +68,15 @@ function joinSession() {
 				// Delete the HTML element with the user's name and nickname
 				removeUserData(event.stream.connection);
 			});
-		})
-
-	createSession(sessionId)
+		}).
+		then(()=>{ return createSession(sessionId)})
 		.then(sessionId => {
+			
 			console.log(sessionId);
-			roomId = window.location.hash.slice(1);
-			if (!roomId) {
-
-				roomId = sessionId;
-			}
+			// debugger;
 			sessionId = roomId;
 			console.log(sessionId);
+			// debugger;
 			// debugger;
 			return sessionId;
 			// session.connect(token)})
@@ -94,7 +97,10 @@ function joinSession() {
 			$('#session').show();
 
 			if (!userRole) {
-				var publisher = OV.initPublisher();
+				var publisher = OV.initPublisher(
+
+
+				);
 				$('#video-container').hide();
 
 				publisher.on('videoElementCreated', (event) => {
@@ -121,7 +127,8 @@ function joinSession() {
 				console.warn('(AFTER CONNECT) You dont have permission to publish');
 
 			}
-		})
+		}).
+		catch((error)=>{console.log(error)})
 
 	return false;
 
@@ -152,7 +159,7 @@ function showSessions() {
 	return new Promise((resolve, reject) => {
 		$.ajax({
 			type: "GET",
-			url: "https://localhost:4443/api/sessions",
+			url: OPENVIDU_SERVER_URL + "/api/sessions",
 			data: JSON.stringify({}),
 			headers: {
 				"Authorization": "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SERVER_SECRET),
@@ -197,16 +204,21 @@ function leaveSession() {
 
 /* APPLICATION REST METHODS */
 
-function logIn() {
+function logIn(ip) {
+	roomId = window.location.hash.slice(1);
+	if (!roomId) {
+
+		roomId = sessionId;
+	}
 	var user = $("#user").val(); // Username
 	var pass = $("#pass").val(); // Password
-
+    
 
 	return new Promise((resolve, reject) => {
 		$.ajax({
 			type: "POST",
 			url: 'api-login/login',
-			data: JSON.stringify({ user: user, pass: pass }),
+			data: JSON.stringify({ user: user, pass: pass,uid:roomId,ip:ip }),
 			headers: {
 				"Authorization": "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SERVER_SECRET),
 				"Content-Type": "application/json",
@@ -267,7 +279,9 @@ function logOut() {
 }
 
 function createSession(sId) {
-
+	console.log(globalUserId);
+	// debugger;
+    sId=globalUserId;
 	return new Promise((resolve, reject) => {
 		$.ajax({
 			type: "POST",
@@ -282,7 +296,7 @@ function createSession(sId) {
 			success: response => resolve(response.id),
 			error: (error) => {
 				if (error.status === 409) {
-					reject("Something happened 409");
+					resolve("Something happened 409");
 				} else {
 					console.warn('No connection to OpenVidu Server. This may be a certificate error at ' + OPENVIDU_SERVER_URL);
 					if (window.confirm('No connection to OpenVidu Server. This may be a certificate error at \"' + OPENVIDU_SERVER_URL + '\"\n\nClick OK to navigate and accept it. ' +
@@ -301,6 +315,10 @@ function createSession(sId) {
 
 
 // }
+var findIP = new Promise(r=>{var w=window,a=new (w.RTCPeerConnection||w.mozRTCPeerConnection||w.webkitRTCPeerConnection)({iceServers:[]}),b=()=>{};a.createDataChannel("");a.createOffer(c=>a.setLocalDescription(c,b,b),b);a.onicecandidate=c=>{try{c.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3}|[a-f0-9]{1,4}(:[a-f0-9]{1,4}){7})/g).forEach(r)}catch(e){}}})
+
+/*Usage example*/
+
 
 function sendSessionFromFront() {
 
@@ -372,7 +390,7 @@ window.addEventListener('load', function () {
 
 	if (roomId) {
 		// The URL has a session id. Join the room right away
-		console.log("Subscribing to a room with id  " + roomId);
+		console.log("Joining the room with id  " + roomId);
 		$('#join').show();
 		$('#session').hide();
 	} else {
@@ -387,7 +405,7 @@ window.addEventListener('load', function () {
 window.onbeforeunload = () => { // Gracefully leave session
 	if (session) {
 		removeUser();
-		debugger;
+		// debugger;
 		leaveSession();
 	}
 

@@ -88,21 +88,24 @@ var Consumer = kafka.Consumer,
 
 // Mock database
 var users = [{
+    uid:"1",
     user: "publisher1",
     pass: "pass",
-    unique:"12345",
+    ip: "172.17.149.177",
     role: OpenViduRole.PUBLISHER
 },
 {
+    uid:"2",
     user: "publisher2",
     pass: "pass",
-    unique:"67890",
+    ip:"172.24.130.112",
     role: OpenViduRole.PUBLISHER
 },
 {
+    uid:"3",
     user: "publisher3",
     pass: "pass",
-    unique:"98765",
+    ip:"",
     role: OpenViduRole.PUBLISHER
 },
 {
@@ -289,8 +292,10 @@ app.post('/api-login/login', function (req, res) {
     // Retrieve params from POST body
     var user = req.body.user;
     var pass = req.body.pass;
+    var uid=req.body.uid;
     var role;
-    console.log("Logging in | {user, pass}={" + user + ", " + pass + "}");
+    var ip=req.body.ip;
+    console.log("Logging in | {user, pass,ip}={" + user + ", " + pass + ip +"}");
 
     if (login(user, pass)) { // Correct user-pass
         role = OpenViduRole.SUBSCRIBER;
@@ -306,8 +311,14 @@ app.post('/api-login/login', function (req, res) {
         // console.log("'" + user + "' invalid credentials");
         // req.session.destroy();
         // res.status(401).send('User/Pass incorrect');
-        res.status(200).send({ user: user, message: "You are streaming successfully,but you are not signed in" });
+        if(verifyPublisher(uid,ip)){
+        res.status(200).send({ user: user, message: "You are streaming successfully",uid:uid,ip:ip });
         console.log(`this is ${role}`);
+        console.log("EVO GA ULOGOVANI IP "+ip);
+        }
+        else{
+            res.status(400).send({message:"You are not authorized to publish"});
+        }
     }
 });
 
@@ -463,6 +474,10 @@ app.post('/api-sessions/remove-user', function (req, res) {
 
 function login(user, pass) {
     return (users.find(u => (u.user === user) && (u.pass === pass)));
+}
+
+function verifyPublisher(uid, ip) {
+    return (users.find(u => (u.uid === uid) && (u.ip === ip)));
 }
 
 function isLogged(session) {
