@@ -30,6 +30,7 @@
     "node-client": "^0.1.17",
     "nodemon": "^1.19.4",
     "openvidu-node-client": "^2.11.0",
+    "path": "^0.12.7",
     "promisify-node": "^0.5.0",
     "public-ip": "^4.0.0",
     "request": "^2.88.0",

@@ -17,7 +17,8 @@ var express = require('express');
 var app = express(); // Create our app with express
 var cors = require('cors');
 var kafka = require('kafka-node');
-var axios=require("axios");
+const path = require('path');
+var axios = require("axios");
 var rp = require("request-promise");
 var fs = require('fs');
 var btoa = require('btoa');
@@ -27,9 +28,13 @@ var bodyParser = require('body-parser'); // Pull information from HTML POST (exp
 var {
     promisify
 } = require('util');
+// require('hls-server')(8000);
 var getIP = promisify(require('external-ip')());
 var sessionId;
 var fullUrl;
+var gStreamPath;
+var gStreamId;
+var gUserId;
 // Server configuration
 app.use(session({
     saveUninitialized: true,
@@ -80,21 +85,24 @@ var mapSessionObjectToken = {};
 
 // Mock database
 var users = [{
-        uid: "1",
+        userId: "marko",
         user: "publisher1",
         pass: "pass",
-        ip: "192.168.185.177",
+        // ip: "192.168.185.177",   wifi
+        // ip:"172.24.130.107",
+        ip: "::1",
+        // ip:"217.172.12.192",
         role: OpenViduRole.PUBLISHER
     },
     {
-        uid: "2",
+        userId: "2",
         user: "publisher2",
         pass: "pass",
         ip: "172.24.130.112",
         role: OpenViduRole.PUBLISHER
     },
     {
-        uid: "3",
+        userId: "3",
         user: "publisher3",
         pass: "pass",
         ip: "172.24.130.XXX",
@@ -115,18 +123,31 @@ var users = [{
 
 
 //KAFKA METHODS
-
+//35.178.85.208           Tree78*(             172.31.28.118
 var Producer = kafka.Producer,
-    client = new kafka.KafkaClient(),
+    //client = new kafka.KafkaClient(),
+    client = new kafka.KafkaClient({
+        kafkaHost: "217.172.12.192:9092"
+        // kafkaHost: "35.178.85.208:9094" 
+        // sasl: { 
+        //     mechanism: 'plain', 
+        //     username: 'engoats',
+        //     password: 'Tree78*('
+        // }
+    }),
     producer = new Producer(client);
 
 var Consumer = kafka.Consumer,
-    consumer = new Consumer(client,
+    consumer = new Consumer(
+        client,
         [{
-            topic: 'Streams',
+            topic: 'TOP_VIDEO_STREAMS',
             offset: 0
         }], {
             autoCommit: false
+            // mechanism: 'plain',
+            // username: 'engoats',
+            // password: 'Tree78*('
         }
     );
 
@@ -137,7 +158,8 @@ producer.on('error', function (err) {
 });
 
 consumer.on('message', function (message) {
-    // console.log(message);vraticemo
+    // console.log(message);
+    //vraticemo
 });
 
 consumer.on('error', function (err) {
@@ -149,7 +171,141 @@ consumer.on('offsetOutOfRange', function (err) {
 });
 
 
-function sendFetchedSession() {
+var topicsToCreate = [{
+    topic: 'TOP_VIDEO_STREAMS',
+    partitions: 1,
+    replicationFactor: 1
+}];
+
+client.createTopics(topicsToCreate, (error, result) => {
+    if (error) {
+        console.log(error);
+    }
+    console.log(result);
+    // result is an array of any errors if a given topic could not be created
+});
+
+
+
+
+// app.get('/:gStreamPath1', function (req, res) {
+//     const path = `public/recordings/${sessionId}/${gStreamId}.webm`;
+//     console.log(sessionId);
+//     console.log(gStreamPath);
+//     const stat = fs.statSync(path);
+//     const fileSize = stat.size;
+//     const range = req.headers.range;
+
+//     if (range) { 
+//         const parts = range.replace(/bytes=/, "").split("-");
+//         const start = parseInt(parts[0], 10);
+//         const end = parts[1] ?
+//             parseInt(parts[1], 10) :
+//             fileSize - 1;
+
+//         const chunksize = (end - start) + 1;
+//         const file = fs.createReadStream(path, {
+//             start,
+//             end
+//         })
+//         const head = {
+//             'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+//             'Accept-Ranges': 'bytes',
+//             'Content-Length': chunksize,
+//             'Content-Type': 'video/webm',
+//         };
+
+//         res.writeHead(206, head);
+//         file.pipe(res);
+//     } else {
+//         const head = {
+//             'Content-Length': fileSize,
+//             'Content-Type': 'video/webm',
+//         };
+//         res.writeHead(200, head);
+//         fs.createReadStream(path).pipe(res);
+//     }
+// });
+
+
+
+
+app.get('/:gStreamPath', function (req, res) {
+    res.writeHead(200, {
+        "Content-Type": "video/webm"
+    }); 
+    // console.log(req.headers);
+    if(gStreamId){
+    var rs = fs.createReadStream(`public/recordings/${sessionId}/${gStreamId}.webm`);
+    rs.pipe(res);
+    }else{console.log("Desired stream could not be found");}
+});
+ 
+
+
+// app.get('/video2', function(req, res) {
+// 	const path = 'public/recordings/sample.mp4';
+// 	const stat = fs.statSync(path);
+// 	const fileSize = stat.size;
+// 	const range = req.headers.range;
+// 	if (range) {
+// 		const parts = range.replace(/bytes=/, "").split("-");
+// 		const start = parseInt(parts[0], 10);
+// 		const end = parts[1] ? parseInt(parts[1], 10) : fileSize-1;
+// 		const chunksize = (end-start)+1;
+// 		const file = fs.createReadStream(path, {start, end});
+// 		const head = {
+// 			'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+// 			'Accept-Ranges': 'bytes',
+// 			'Content-Length': chunksize,
+// 			'Content-Type': 'video/mp4',
+// 		};
+// 		res.writeHead(206, head);
+// 		file.pipe(res);
+// 	} else {
+// 		const head = {
+// 			'Content-Length': fileSize,
+// 			'Content-Type': 'video/mp4',
+// 		};
+// 		res.writeHead(200, head);
+// 		fs.createReadStream(path).pipe(res);
+// 	}
+// });
+
+
+
+
+
+app.get('/api-sessions/fetchip', function (req, res) {
+
+    // getIP()
+    //     .then((ip) => {
+    //         console.log("This is external ip " + ip);
+    //         res.status(200).send({
+    //             ip:ip
+    //         });
+    //     });
+    // console.log("AAAAAAAAAAAAAA");
+    // console.log(req.connection.remoteAddress);
+    // var forwardedIpsStr = req.header('x-forwarded-for');
+    //    var IP = '';
+
+    //    if (forwardedIpsStr) {
+    //       IP = forwardedIps = forwardedIpsStr.split(',')[0];  
+    //    }
+    var ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    console.log("Below is the ip");
+    console.log(ip);
+    res.send({ 
+        ip
+    });
+});
+
+
+
+
+
+ function sendFetchedSession() {
     var options = {
 
         url: `https://${OPENVIDU_URL}/api/sessions/${sessionId}`,
@@ -168,34 +324,44 @@ function sendFetchedSession() {
     getIP()
         .then((ip) => {
             console.log("This is external ip " + ip);
-            fullUrl = `https://${ip}:${server.address().port}/#`;
+            fullUrl = `https://${ip}:${server.address().port}/`;
             console.log(fullUrl);
             return rp(options);
         })
         .then(response => {
             bodyObject = JSON.parse(response.body);
             console.log("Body object original " + response.body);
-            //  Making new object!!!   and send bodyObject1
-            var bodyObject1 = {
 
-                streamPath: `C:/Users/marko.petrovic/Desktop/connexions/public/recordings/${bodyObject.sessionId}`,
-                sessionId: `${fullUrl}${bodyObject.sessionId}`,
-                connectionId: bodyObject.connections.content[0].connectionId,
-                createdAt: bodyObject.connections.content[0].createdAt,
-                location: bodyObject.connections.content[0].location,
-                platform: bodyObject.connections.content[0].platform,
-                token: bodyObject.connections.content[0].token,
+            //  Making new object!!!   and send bodyObject1
+
+            var bodyObject1 = {
+                deviceId:roomId,
+                sessionId: `${bodyObject.sessionId}`,
+
+                // streamPath: `public/recordings/${bodyObject.sessionId}`,
+                streamUrl: `${fullUrl}${bodyObject.connections.content[0].publishers[0].streamId}`,
+                localStreamUrl: `https://localhost:5000/${bodyObject.connections.content[0].publishers[0].streamId}`,
+                htmlUrl: `${fullUrl}#${bodyObject.sessionId}`,
+                // connectionId: bodyObject.connections.content[0].connectionId,
+                // createdAt: bodyObject.connections.content[0].createdAt,
+                // location: bodyObject.connections.content[0].location,
+                platform: bodyObject.connections.content[0].platform
+                // token: bodyObject.connections.content[0].token,
 
             };
             // console.log(Object.keys(bodyObject.connections.content[0]));
-            bodyString = JSON.stringify(bodyObject1); 
-
+            bodyString = JSON.stringify(bodyObject1);
+            gStreamPath=bodyObject1.streamUrl;
+            gStreamId=`${bodyObject.connections.content[0].publishers[0].streamId}`;
+            console.log("GLOBALNI PATH DO STREAMA   "+gStreamPath);
+            console.log("GLOBALNI ID STREAMA   "+gStreamId);
             console.log("Body string for kafka  : " + bodyString);
 
             payloads = [{
-                topic: "Streams",
+                topic: "TOP_VIDEO_STREAMS",
                 messages: bodyString,
-                partition: 0
+                partition: 0,
+                timestamp: Date.now()
             }];
             producer.send(payloads, function (err, data) {
                 if (err) {
@@ -205,20 +371,20 @@ function sendFetchedSession() {
                 console.log("Done");
             });
 
-        return postFiware(bodyObject1);
+            // return postFiware(bodyObject1);
         })
-        .then((value=>{console.log("postfiware executed, status code "+value.statusCode);})
-        )
+        .then((value => {
+            // console.log("postfiware executed, status code " + value.statusCode);
+        }))
         .catch(error => {
-            console.log("In catched error");
-            console.log(error);
+            console.log("Error has been catched with status of " +error.statusCode);
         });
 
 }
 
 function postFiware(bodyObject1) {
     return new Promise((resolve, reject) => {
-        console.log("IN postfiware bodyobject "+JSON.stringify(bodyObject1));
+        console.log("IN postfiware bodyobject " + JSON.stringify(bodyObject1));
         var options = {
             method: "POST",
             headers: {
@@ -241,12 +407,11 @@ function postFiware(bodyObject1) {
 
         rp(options)
             .then((response) => {
-                    // console.log("RESPONSE IZ FIWAREA " + JSON.stringify(response.body));
-                    console.log("before resolving postFiware");
-                    console.log(response.statusCode);
-                    return resolve(response);
-                }
-            )
+                // console.log("RESPONSE IZ FIWAREA " + JSON.stringify(response.body));
+                console.log("before resolving postFiware");
+                console.log(response.statusCode);
+                return resolve(response);
+            })
             .catch(error => {
                 console.log(error.statusCode);
                 return reject(error);
@@ -259,15 +424,26 @@ app.post('/api-sessions/sendSessionFromFront', function (req, res) {
 
     // Retrieve params from POST body
     sessionId = req.body.sessionId;
+    roomId=req.body.roomId;
     console.log("Evo nam ga originalni session id  " + sessionId);
+    console.log("Evo nam ga originalni room id  " + roomId);
     res.status(200).send({
         sessionId: sessionId,
         message: "Evo odgovora iz backend-a sa session id-jem"
     });
-    sendFetchedSession();
+    // sendFetchedSession();
 });
 
+app.get('/api-sessions/sendFetchedSession', function (req, res) {
 
+    // Retrieve params from POST body
+
+    res.status(200).send(
+        sendFetchedSession()
+        );
+    
+
+});
 
 
 // Login
@@ -276,16 +452,17 @@ app.post('/api-login/login', function (req, res) {
     // Retrieve params from POST body
     var user = req.body.user;
     var pass = req.body.pass;
-    var uid = req.body.uid;
-    var role;
+    var userId = req.body.userId;
+    var gUserId=userId;
     var ip = req.body.ip;
-    console.log("Logging in with  username, password ,ip}={" + user + ", " + pass + ip + "}");
+    var role;
+    console.log("{Logging in with  username, password ,ip}={" + user + " ," + pass + " ," + ip + "}");
 
     if (login(user, pass)) { // Correct user-pass
         role = OpenViduRole.SUBSCRIBER;
         // Validate session and return OK 
         // Value stored in req.session allows us to identify the user in future requests
-        console.log(  user + " has logged in" + pass +" , "+ role);
+        console.log(user + " has logged in" + pass + " , " + role);
         req.session.loggedUser = user;
         // role=req.session.loggedUser.role;
         res.status(200).send({
@@ -295,18 +472,18 @@ app.post('/api-login/login', function (req, res) {
             pass: pass
         });
         // res.send();
-    } else { 
+    } else {
         //THIS IS REPLACED
         // Wrong user-pass
         // Invalidate session and return error
         // console.log("'" + user + "' invalid credentials");
         // req.session.destroy();
         // res.status(401).send('User/Pass incorrect');  
-        if (verifyPublisher(uid, ip)) {
+        if (verifyPublisher(userId, ip)) {
             res.status(200).send({
                 user: user,
                 message: "You are streaming successfully",
-                uid: uid,
+                userId: userId,
                 ip: ip
             });
             console.log(`this is role  ${role}`);
@@ -473,8 +650,8 @@ function login(user, pass) {
     return (users.find(u => (u.user === user) && (u.pass === pass)));
 }
 
-function verifyPublisher(uid, ip) {
-    return (users.find(u => (u.uid === uid) && (u.ip === ip)));
+function verifyPublisher(userId, ip) {
+    return (users.find(u => (u.userId === userId) && (u.ip === ip)));
 }
 
 // function isLogged(session) {
@@ -508,9 +685,9 @@ function verifyPublisher(uid, ip) {
 // async function getData() {
 //     const result = await axios.get('https://dube.io/service/ping')
 //     const data = result.headers;
-    
+
 //     console.log('data', data);
-    
+
 //     return data;
 // }
 

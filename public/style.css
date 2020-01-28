@@ -233,17 +233,19 @@ a:hover .demo-logo {
 }
 
 #video-container video {
-	position: relative;
+	/* position: relative;
 	float: left;
 	width: 50%;
-	cursor: pointer;
+	cursor: pointer; */
+	height:100vh;
 }
 
 #video-container div {
-	float: left;
+	/* float: left;
 	width: 50%;
 	position: relative;
-	margin-left: -50%;
+	margin-left: -50%; */
+	height:100vh;
 }
 
 #video-container p {

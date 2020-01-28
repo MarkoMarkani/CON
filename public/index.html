@@ -20,6 +20,7 @@
 	<link rel="styleSheet" href="style.css" type="text/css" media="screen">
 	<script src="openvidu-browser-2.11.0.js"></script>
 	<script src="app.js"></script>
+	<!-- <script src=></script> -->
 	<script>
 		$(document).ready(function () {
 			$('[data-toggle="tooltip"]').tooltip({
@@ -79,7 +80,7 @@
 
 					<p class="text-center">
 						<button class="btn btn-lg btn-danger" onclick="removeUser(); leaveSession(); redirect()">Leave this session</button>
-						<button class="btn btn-lg btn-primary" onclick="showSessions()">List all sessions</button>
+						<button class="btn btn-lg btn-primary" onclick="sendKafkaInfo()">Notify</button>
 					</p>
 
 

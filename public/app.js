@@ -3,6 +3,7 @@ var session;
 var roomId; // Name of the video session the user will connect to
 var token; // Token retrieved from OpenVidu Server
 var sessionId;
+var gSessionId;
 var loggedIn = false;
 var OPENVIDU_SERVER_URL = "https://localhost:4443";
 var OPENVIDU_SERVER_SECRET = "MY_SECRET";
@@ -12,20 +13,24 @@ var globalUserId;
 //sa async vraca promise
 function joinSession() {
 
-findIP.
+	sendIpAddress().
 	then(ip => {
 		console.log(ip);
 		return logIn(ip);
 	}).
-	then(value => {
+	then(loginInfo => {
 			// Random nickName and session
-			console.log(value);
+			console.log(loginInfo);
 			console.log("AFTER YOU HAVE LOGGED IN ");
 			loggedIn = true;
-			console.log(value.role);
-			console.log(value.uid);
-			userRole = value.role;
-			globalUserId = value.uid;
+			if (loginInfo.role === "SUBSCRIBER") {
+				console.log(`Role is ${loginInfo.role}`);
+			} else {
+				console.log("Role is publisher");
+			}
+			console.log(loginInfo.userId);
+			userRole = loginInfo.role;
+			globalUserId = loginInfo.userId;
 
 			OV = new OpenVidu();
 			session = OV.initSession();
@@ -38,18 +43,21 @@ findIP.
 				if (userRole) {
 					console.log("ON STREAM CREATED IF SUBSCRIBER");
 					var subscriber = session.subscribe(event.stream, 'video-container');
-
+                        console.log(event.stream);
 					subscriber.on('videoElementCreated', (event) => {
-
+                        console.log(event);
 						var userData = {
 							userName: roomId
 						}; //provericemo ovo
 						// Add a new HTML element for the user's name and nickname over its video
+						console.log(userData);
+						/*jshint -W087 */
+						debugger;
 						appendUserData(event.element, userData);
-						console.log("POSLE STREAMA OVO VIDIS AKO SI SUBSCRIBER")
+						console.log("You see this after the stream if you are a Subscriber");
 					});
 				} else {
-					console.log("Ne mozes da vidis stream-publisher si");
+					console.log("You can not see the stream-you are a Publisher");
 					console.log("ON STREAM CREATED IF PUBLISHER");
 				}
 			});
@@ -61,67 +69,82 @@ findIP.
 
 			return createSession(sessionId);
 		})
-		.then(sessionId => {
+		.then(sessionId => { 
 
 			console.log(sessionId);
-			sessionId = roomId;
-			console.log(sessionId);
+			console.log(roomId);
+			if(sessionId===undefined){
+				sessionId=roomId;
+			}else{
+			gSessionId=sessionId;
+			}
+			// roomId=sessionId;
+			// console.log(sessionId);
 			return createToken(sessionId);
 		}).
 	then((token) => session.connect(token)).
 	then(() => {
-		$("#name-user").text(user);
-		$("#not-logged").hide();
-		$("#logged").show();
-		console.log(roomId);
-		console.log(sessionId);
-		// --- 5) Set page layout for active call ---
-		var path = (location.pathname.slice(-1) == "/" ? location.pathname : location.pathname + "/");
-		window.history.pushState("", "", path + '#' + roomId);
-		console.log("Here is room id after CONNECT " + roomId);
-		// urlId = sessionId;
-		var userName = $("#user").val();
-		$('#session-title').text(roomId);
-		$('#join').hide();
-		$('#session').show();
+			$("#name-user").text(user);
+			$("#not-logged").hide();
+			$("#logged").show();
+			console.log(roomId);
+			console.log(gSessionId);
+			// --- 5) Set page layout for active call ---
+			var path = (location.pathname.slice(-1) == "/" ? location.pathname : location.pathname + "/");
+			window.history.pushState("", "", path + '#' + gSessionId);
+			console.log("Here is room id after CONNECT " + roomId);
+			console.log("Here is gSessionId id after CONNECT " + gSessionId);
+			// urlId = sessionId;
+			var userName = $("#user").val();
+			$('#session-title').text(gSessionId);
+			$('#join').hide();
+			$('#session').show();
 
-		if (!userRole) {
-			var publisher = OV.initPublisher(
+			if (!userRole) {
+				var publisher = OV.initPublisher(
 
-			);
-			$('#video-container').hide();
+				);
+				
+				$('#video-container').hide();
 
-			publisher.on('videoElementCreated', (event) => {
+				publisher.on('videoElementCreated', (event) => {
+                    console.log(event);
+					var userData = {
+						userName: userName
+					};
+					initMainVideo(event.element, userData);
+					appendUserData(event.element, userData);
+					$(event.element).prop('muted', true); // Mute local video
+					console.log("Trenutno se snima...");
+				});
 
-				var userData = {
-					userName: userName
-				};
-				initMainVideo(event.element, userData);
-				appendUserData(event.element, userData);
-				$(event.element).prop('muted', true); // Mute local video
-				console.log("Trenutno se snima...");
-			});
 
+				session.publish(publisher);
+				sessionId = session.sessionId;
+				console.log("OpenVidu session id ", sessionId);
+				console.log("(AFTER CONNECT) i posle PUBLISH-a ");
 
-			session.publish(publisher);
-			sessionId = session.sessionId;
-			console.log("OpenVidu session id ", sessionId);
-			console.log("(AFTER CONNECT) i posle PUBLISH-a ");
+				return sendSessionFromFront();
 
-			return sendSessionFromFront();
+			} else {
+				console.log("AFTER CONNECT IF IT IS SUBSCRIBER");
+				console.warn('(AFTER CONNECT) You dont have permission to publish');
 
-		} else {
-			console.log("AFTER CONNECT IF IT IS SUBSCRIBER");
-			console.warn('(AFTER CONNECT) You dont have permission to publish');
-
+			}
+			// return sendSessionFromFront();
+		})
+		.then(value => {
+			console.log("Session id from front sent " + value);
+		// 	return sendKafkaInfo();     //Ovako dobijamo Kafka info prilikom Join sesije!!!         Ovako ili direktno preko dugmeta Notify
+		// })
+		// .then(kafkaInfo=>{
+        // console.log(kafkaInfo);
 		}
-		// return sendSessionFromFront();
-	})
-	.then(value=>{console.log("Session id from front sent "+value);})
-	.catch((error) => {
-		console.log(error);
-		return false;
-	});
+		)
+		.catch((error) => {
+			console.log(error);
+			return false;
+		});
 
 }
 
@@ -198,8 +221,8 @@ function leaveSession() {
 function logIn(ip) {
 	roomId = window.location.hash.slice(1);
 	if (!roomId) {
-
 		roomId = sessionId;
+		console.log("No user id provided");
 	}
 	var user = $("#user").val(); // Username
 	var pass = $("#pass").val(); // Password
@@ -212,7 +235,7 @@ function logIn(ip) {
 			data: JSON.stringify({
 				user: user,
 				pass: pass,
-				uid: roomId,
+				userId: roomId,
 				ip: ip
 			}),
 			headers: {
@@ -267,8 +290,13 @@ function logOut() {
 
 function createSession(sId) {
 	console.log(globalUserId);
-	sId = globalUserId;
-
+	if(globalUserId){
+	sId = globalUserId+"-"+makeid(20);
+	}
+	else{
+    sId=window.location.hash.slice(1);
+	}
+	
 	return new Promise((resolve, reject) => {
 		$.ajax({
 			type: "POST",
@@ -286,7 +314,7 @@ function createSession(sId) {
 			success: response => resolve(response.id),
 			error: (error) => {
 				if (error.status === 409) {
-					resolve("Something happened 409");
+					resolve(undefined);
 				} else {
 					console.warn('No connection to OpenVidu Server. This may be a certificate error at ' + OPENVIDU_SERVER_URL);
 					if (window.confirm('No connection to OpenVidu Server. This may be a certificate error at \"' + OPENVIDU_SERVER_URL + '\"\n\nClick OK to navigate and accept it. ' +
@@ -315,9 +343,11 @@ var findIP = new Promise(r => {
 	a.createOffer(c => a.setLocalDescription(c, b, b), b);
 	a.onicecandidate = c => {
 		try {
-			c.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3}|[a-f0-9]{1,4}(:[a-f0-9]{1,4}){7})/g).forEach(r)
+			// console.log(c.candidate.candidate)
+			c.candidate.candidate.match(/([0-9]{1,3}(\.[0-9]{1,3}){3}|[a-f0-9]{1,4}(:[a-f0-9]{1,4}){7})/g).forEach(r);
 		} catch (e) {}
 	};
+	
 });
 
 /*Usage example*/
@@ -330,7 +360,8 @@ function sendSessionFromFront() {
 			type: "POST",
 			url: "api-sessions/sendSessionFromFront",
 			data: JSON.stringify({
-				sessionId: sessionId		
+				sessionId: sessionId,
+				roomId:roomId
 			}),
 			headers: {
 				"Authorization": "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SERVER_SECRET),
@@ -358,6 +389,73 @@ function sendSessionFromFront() {
 	});
 }
 
+function sendIpAddress() {
+
+	return new Promise((resolve, reject) => {
+		$.ajax({
+			type: "GET",
+			 url: "/api-sessions/fetchip",
+			data: JSON.stringify({
+				
+			}),
+			headers: {
+				"Authorization": "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SERVER_SECRET),
+				"Content-Type": "application/json",
+				"Access-Control-Allow-Origin": "*"
+			},
+			success: response => {
+				console.log("In success");
+			
+				return resolve(response.ip);
+			},
+			error: (error) => {
+				console.log("In error");
+				if (error.status === 409) {
+					reject("Something happened 409");
+				} else {
+					console.warn('Something went wrong');
+				
+				}
+			}
+		});
+	});
+}
+
+
+
+function sendKafkaInfo() {
+
+	return new Promise((resolve, reject) => {
+		$.ajax({
+			type: "GET",
+			 url: "/api-sessions/sendFetchedSession",
+			data: JSON.stringify({
+				
+			}),
+			headers: {
+				"Authorization": "Basic " + btoa("OPENVIDUAPP:" + OPENVIDU_SERVER_SECRET),
+				"Content-Type": "application/json",
+				"Access-Control-Allow-Origin": "*"
+			},
+			success: response => {
+				console.log("In success");
+				return resolve(response);
+			},
+			error: (error) => {
+				console.log("In error");
+				if (error.status === 409) {
+					reject("Something happened 409");
+				} else {
+					console.warn('Something went wrong');
+				
+				}
+			}
+		});
+	});
+}
+
+
+
 function redirect() {
 	window.location = "/";
 }
@@ -382,7 +480,7 @@ function removeUser() {
 
 			error: (error) => {
 				reject(error);
-				
+
 			}
 		});
 	});
@@ -421,7 +519,7 @@ window.onbeforeunload = () => { // Gracefully leave session
 		leaveSession();
 	}
 
-}
+};
 
 function appendUserData(videoElement, connection) {
 	var clientData;
@@ -510,8 +608,3 @@ function makeid(length) {
 	}
 	return result;
 }
-
-
-
-
-
