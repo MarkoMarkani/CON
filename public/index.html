@@ -1,0 +1,105 @@
+<html>
+
+<head>
+	<title>connexions</title>
+
+	<meta name="viewport" content="width=device-width, initial-scale=1" charset="utf-8">
+	<link rel="shortcut icon" href="images/favicon.ico" type="image/x-icon">
+
+	<!-- Bootstrap -->
+	<script src="https://code.jquery.com/jquery-3.3.1.min.js"
+		integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css"
+		integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"
+		integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
+		crossorigin="anonymous"></script>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+	<!-- Bootstrap -->
+
+	<link rel="styleSheet" href="style.css" type="text/css" media="screen">
+	<script src="openvidu-browser-2.11.0.js"></script>
+	<script src="app.js"></script>
+	<!-- <script src=></script> -->
+	<script>
+		$(document).ready(function () {
+			$('[data-toggle="tooltip"]').tooltip({
+				html: true
+			});
+		});
+	</script>
+</head>
+
+<body id="body">
+
+	<!-- <nav class="navbar navbar-default">
+		<div class="container">
+			<div class="navbar-header">
+			</div>
+		</div>
+	</nav>
+
+	<div class="container text-center">
+		<div id="not-logged" hidden class="vertical-center">
+			<div id="img-div"></div>
+			<form class="form-group jumbotron" onsubmit="return false">
+				<p>
+					<label>User</label><input class="form-control" type="text" id="user" required>
+				</p>
+				<p>
+					<label>Pass</label><input class="form-control" type="password" id="pass" required>
+				</p>
+				<p class="text-center">
+					<button class="btn btn-lg btn-info" onclick="joinSession()">Log in</button>
+
+				</p>
+			</form>
+
+		</div>
+
+		<div id="logged">
+			<div id="join" class="vertical-center">
+				<div id="join-dialog" class="jumbotron">
+					<h1>Publish a new session</h1>
+					<form class="form-group" onsubmit="return false">
+
+
+						<p class="text-center"> -->
+							<!-- <button class="btn btn-lg btn-success" onclick="joinSession()">Publish</button> -->
+							<!-- <button class="btn btn-lg btn-success" onclick="showLogIn()">Subscribe</button>
+						</p>
+					</form>
+					<hr>
+
+				</div>
+			</div>
+	-->
+			<div id="session" style="display: none;">
+				<div>
+					<!-- <h1 id="session-title"></h1> -->
+<!--
+					<p class="text-center">
+						<button class="btn btn-lg btn-danger" onclick="removeUser(); leaveSession(); redirect()">Stop</button>
+					</p>
+-->
+			
+				</div>
+				<div id="main-video" class="col-md-6">
+
+					<p class="userName"></p>
+					<video autoplay playsinline="true"></video>
+				</div>
+				<div id="video-container" class="col-md-6"></div>
+			</div>
+		</div>
+	</div>
+
+	<!-- <footer class="footer">
+		<div class="container">
+
+		</div>
+	</footer>  -->
+
+</body>
+
+</html>
