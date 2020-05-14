@@ -9,8 +9,8 @@ var OPENVIDU_SERVER_URL = "https://217.172.12.192:8005";//217.172.12.192:8080
 var OPENVIDU_SERVER_SECRET = "MY_SECRET";
 var globalUserId;
 /* OPENVIDU METHODS */
-//ON DEV?GRANA1 
-//sa async vraca promise
+ 
+
 function joinSession() {
 
 	sendIpAddress().
@@ -122,7 +122,7 @@ function joinSession() {
 				$('#video-container').hide();
 
 				publisher.on('videoElementCreated', (event) => {
-				// 		sendKafkaInfo()    //Ovako dobijamo Kafka info prilikom Join sesije!!!         Ovako ili direktno preko dugmeta Notify
+				// 		sendKafkaInfo() 
 				// .then(kafkaInfo=>{
 				// console.log(kafkaInfo)})
 				// 	console.log(event);
@@ -643,7 +643,7 @@ window.addEventListener('load', function () {
 				$('#video-container').hide();
 
 				publisher.on('videoElementCreated', (event) => {
-				// 		sendKafkaInfo()    //Ovako dobijamo Kafka info prilikom Join sesije!!!         Ovako ili direktno preko dugmeta Notify
+				// 		sendKafkaInfo()
 				// .then(kafkaInfo=>{
 				// console.log(kafkaInfo)})
 				// 	console.log(event);
@@ -671,7 +671,7 @@ window.addEventListener('load', function () {
 				console.log(publisher);
 				// /*jshint -W087 */
 				// debugger;
-				// sendKafkaInfo()    //Ovako dobijamo Kafka info prilikom Join sesije!!!         Ovako ili direktno preko dugmeta Notify
+				// sendKafkaInfo()    
 				// .then(kafkaInfo=>{
 				// console.log(kafkaInfo)})
 				sessionId = session.sessionId;
@@ -689,7 +689,7 @@ window.addEventListener('load', function () {
 		})
 		.then(value => {
 			// console.log("Session id from front sent " + value);
-			// 	return sendKafkaInfo();     //Ovako dobijamo Kafka info prilikom Join sesije!!!         Ovako ili direktno preko dugmeta Notify
+			// 	return sendKafkaInfo();     
 			// })
 			// .then(kafkaInfo=>{
 			// console.log(kafkaInfo);

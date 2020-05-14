@@ -2,9 +2,7 @@
 var OpenVidu = require('openvidu-node-client').OpenVidu;
 var Session = require('openvidu-node-client').Session;
 var OpenViduRole = require('openvidu-node-client').OpenViduRole;
-//console.log("ARGV "+process.argv);
-//let appServer=process.argv[2];
-//console.log("APP SERVER "+appServer);
+
 // Check launch arguments: must receive openvidu-server URL and the secret
 if (process.argv.length != 4) {
     console.log("Usage: node " + __filename + " OPENVIDU_URL OPENVIDU_SECRET");
@@ -33,6 +31,7 @@ const rtspserver = new RtspServer({
     rtpPortStart: 10000,
     rtpPortCount: 10000
 });
+
 const NodeMediaServer = require('node-media-server');
 const nmsConfig = {
     rtmp: {
@@ -49,8 +48,10 @@ const nmsConfig = {
     
   };
 var nms = new NodeMediaServer(nmsConfig);
+
 var ffmpeg = require('fluent-ffmpeg');
 var command = ffmpeg();
+
 var {
     promisify
 } = require('util');
@@ -59,7 +60,7 @@ var sessionId;
 var fullUrl;
 var gStreamPath;
 var gStreamId;
-var gUserId;
+
 // Server configuration
 app.use(session({
     saveUninitialized: true,
@@ -224,7 +225,6 @@ nms.on('doneConnect', (id, args) => {
 nms.on('prePublish', (id, StreamPath, args) => {
     console.log('[NodeEvent on prePublish]', `id=${id} StreamPath=${StreamPath} args=${JSON.stringify(args)}`);
   //   ffmpegConversion();
-  //   ffmpegConversion1();
      sendRtmptoRtspKafka(StreamPath);
 });
 
@@ -586,7 +586,7 @@ app.post('/api-sessions/create-session', function (req, res) {
 });
 
 
-
+//Function for retrieving a token from OV
 
 // app.post('/api-sessions/get-token', function (req, res) {
 
@@ -730,19 +730,16 @@ function sendRtmptoRtspKafka(StreamPath) {
     let fullMessage2;
     let fullStringMessage2;
     let fullBodyMessage=
-{
+            {
                 deviceId: `cam-3`,
      //cam-3            
                 sessionId: ``,
-
-
              //   streamUrl: `rtmp://217.172.12.192:8002`+StreamPath,
                 streamUrl: `rtmp://${appServerAddress}:8002`+StreamPath,
                 
                 htmlUrl: ``,
 
                 platform: ``
-
 
             };
     fullMessage2 = {
